@@ -76,8 +76,8 @@ const routes = [
       { path: 'passenger/home', component: PassengerHome, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/orders/publish', component: PassengerOrderPublish, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/orders/search', component: PassengerOrderSearch, meta: { requiresAuth: true, role: 'passenger' } },
-      { path: 'passenger/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/orders/mine', component: PassengerOrderMine, meta: { requiresAuth: true, role: 'passenger' } },
+      { path: 'passenger/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/payment/:orderId', component: PassengerPayment, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/feedback', component: PassengerFeedback, meta: { requiresAuth: true, role: 'passenger' } },
 
