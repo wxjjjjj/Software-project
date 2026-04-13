@@ -48,11 +48,12 @@ function getSession() {
   }
 }
 
-function setSession(session) {
-  localStorage.setItem('session', JSON.stringify(session))
+function setSession(s) {
+  localStorage.setItem('session', JSON.stringify(s))
+  session.value = s  // 同步更新响应式引用
 }
 
-const session = computed(() => getSession())
+const session = ref(getSession())
 
 const roleLabel = computed(() => {
   if (session.value.role === 'admin') return '管理员'
@@ -139,6 +140,7 @@ function switchRole(target) {
 
 function logout() {
   localStorage.removeItem('session')
+  session.value = {}
   router.push('/login')
 }
 </script>

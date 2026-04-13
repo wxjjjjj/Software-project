@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# 显式加载 backend/.env，不依赖启动目录
+_env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 
 def _as_bool(value: str, default: bool = False) -> bool:

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import { loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig(({ mode }) => {
   //VITE_USE_LEADER_API：true--使用wxj统一后端的地址，否则使用自己pc上的后端地址。
@@ -15,6 +16,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url))
+      }
+    },
     server: {
       port: 5173,
       proxy: {
