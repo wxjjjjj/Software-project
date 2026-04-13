@@ -35,9 +35,8 @@
 
 - `backend/ride/service.py`：原仅有 4 个无参数骨架接口，重写为完整的 10 个带校验接口
 - `backend/ride/ride_domain.py`：原字段为驼峰命名、仅1条种子数据，重写为下划线命名 + 完整业务逻辑
-- `backend/gateway/main.py`：转发端口从 8002 改为 7002（整体端口段 8000-8003 → 7000-7003）
-- `sql/ride/001_init.sql`：字段与 ride_domain.py 对齐
-- `frontend/vite.config.js`：代理从 8000 改为 7000
+- `backend/gateway/main.py`：补全转发逻辑，端口保持原约定 8002
+- `frontend/vite.config.js`：代理保持 8000，无变化
 
 ### 修复（原框架存在的问题）
 
@@ -45,9 +44,7 @@
 
 ### 配置变更
 
-- 端口统一改为 `7000-7003`（原 `8000-8003`），原因：Windows Docker Desktop 保留了 8000-8003 端口段，导致启动报错
-- `backend/.env` 新增 `RIDE_USE_MOCK=true`、`RIDE_DB_PORT=7002`
-- `frontend/.env` 新增 `VITE_API_BASE=http://localhost:7000`
+- `backend/.env` 新增 `RIDE_USE_MOCK=true`（端口保持原框架约定，无变化）
 
 ---
 
