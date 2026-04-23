@@ -2,6 +2,7 @@
 -- Owner: hws（订单核心）+ zj（车辆）
 -- 说明：仅由订单车辆域负责人维护，其他域禁止直接修改表结构
 
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS ride_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE ride_db;
 

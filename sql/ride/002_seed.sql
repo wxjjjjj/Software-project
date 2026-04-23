@@ -3,6 +3,7 @@
 -- 用途：白盒测试，切换 RIDE_USE_MOCK=false 后验证真实数据库路径
 -- 执行前提：已执行 001_init.sql
 
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE ride_db;
 
 -- ─────────────────────────────────────────────
