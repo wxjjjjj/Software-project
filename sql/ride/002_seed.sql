@@ -10,9 +10,9 @@ USE ride_db;
 -- owner_user_id 使用数字占位，与 account_db 对接后替换为真实 userId
 -- ─────────────────────────────────────────────
 INSERT INTO vehicle (id, owner_user_id, plate_no, brand, color, seat_capacity, verified, status) VALUES
-  (1, 901, '粤A·88888', '丰田 凯美瑞', '珍珠白', 5, 1, 'available'),  -- dev-owner-1
-  (2, 101, '粤B·12345', '本田 雅阁',   '深空黑', 5, 1, 'available'),  -- dev-user-1
-  (3, 101, '粤C·67890', '大众 帕萨特', '银色',   5, 1, 'available');  -- dev-user-1
+  (1, 'dev-owner-1', '粤A·88888', '丰田 凯美瑞', '珍珠白', 5, 1, 'available'),
+  (2, 'dev-user-1',  '粤B·12345', '本田 雅阁',   '深空黑', 5, 1, 'available'),
+  (3, 'dev-user-1',  '粤C·67890', '大众 帕萨特', '银色',   5, 1, 'available');
 
 -- ─────────────────────────────────────────────
 -- 订单主表（对应 _ORDERS mock 数据）

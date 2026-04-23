@@ -10,7 +10,7 @@ USE ride_db;
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS vehicle (
   id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
-  owner_user_id BIGINT       NOT NULL               COMMENT '车主 userId（来自 account_db，仅存 ID）',
+  owner_user_id VARCHAR(64)  NOT NULL               COMMENT '车主 userId（来自 account_db，仅存 ID）',
   plate_no      VARCHAR(32)  NOT NULL UNIQUE         COMMENT '车牌号',
   brand         VARCHAR(64)                          COMMENT '品牌型号',
   color         VARCHAR(32)                          COMMENT '车辆颜色',
