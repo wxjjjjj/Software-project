@@ -1,0 +1,73 @@
+-- ride_db 测试种子数据
+-- 与 backend/ride/ride_domain.py 中的 Mock 数据保持一致
+-- 用途：白盒测试，切换 RIDE_USE_MOCK=false 后验证真实数据库路径
+-- 执行前提：已执行 001_init.sql
+
+USE ride_db;
+
+-- ─────────────────────────────────────────────
+-- 车辆（对应 _VEHICLES mock 数据）
+-- owner_user_id 使用数字占位，与 account_db 对接后替换为真实 userId
+-- ─────────────────────────────────────────────
+INSERT INTO vehicle (id, owner_user_id, plate_no, brand, color, seat_capacity, verified, status) VALUES
+  (1, 901, '粤A·88888', '丰田 凯美瑞', '珍珠白', 5, 1, 'available'),  -- dev-owner-1
+  (2, 101, '粤B·12345', '本田 雅阁',   '深空黑', 5, 1, 'available'),  -- dev-user-1
+  (3, 101, '粤C·67890', '大众 帕萨特', '银色',   5, 1, 'available');  -- dev-user-1
+
+-- ─────────────────────────────────────────────
+-- 订单主表（对应 _ORDERS mock 数据）
+-- ─────────────────────────────────────────────
+INSERT INTO orders (id, passenger_id, start_loc, end_loc,
+                    depart_time_from, depart_time_to,
+                    seats_needed, seats_joined, expected_price,
+                    owner_id, vehicle_id, locked_time,
+                    status, created_at, updated_at) VALUES
+  ('ord-seed-001', 'dev-user-1', '软件园',   '大学城',
+   '2026-04-15 08:00:00', '2026-04-15 09:00:00',
+   3, 1, 45.00, NULL, NULL, NULL,
+   'published', '2026-04-13 10:00:00', '2026-04-13 10:00:00'),
+
+  ('ord-seed-002', 'dev-user-2', '天河客运站', '广州南站',
+   '2026-04-16 14:00:00', '2026-04-16 15:00:00',
+   2, 1, 60.00, NULL, NULL, NULL,
+   'published', '2026-04-13 09:00:00', '2026-04-13 09:00:00'),
+
+  ('ord-seed-003', 'dev-user-1', '珠江新城', '广州白云机场',
+   '2026-04-17 06:00:00', '2026-04-17 07:00:00',
+   3, 3, 80.00, 'dev-owner-1', '1', '2026-04-13 12:00:00',
+   'locked', '2026-04-13 08:00:00', '2026-04-13 12:00:00'),
+
+  ('ord-seed-004', 'dev-user-3', '南门', '广州南站',
+   '2026-04-18 10:00:00', '2026-04-18 11:00:00',
+   2, 1, 25.00, NULL, NULL, NULL,
+   'published', '2026-04-13 11:00:00', '2026-04-13 11:00:00');
+
+-- ─────────────────────────────────────────────
+-- 订单标签（对应 _TAGS mock 数据）
+-- ─────────────────────────────────────────────
+INSERT INTO order_tag (id, order_id, tag_content) VALUES
+  ('tag-s1', 'ord-seed-001', '静音'),
+  ('tag-s2', 'ord-seed-001', '禁烟'),
+  ('tag-s3', 'ord-seed-002', '宠物友好'),
+  ('tag-s4', 'ord-seed-003', '早高峰'),
+  ('tag-s5', 'ord-seed-003', '不绕路'),
+  ('tag-s6', 'ord-seed-004', '准时出发'),
+  ('tag-s7', 'ord-seed-004', '禁烟');
+
+-- ─────────────────────────────────────────────
+-- 订单参与乘客（对应 _PASSENGERS mock 数据）
+-- ─────────────────────────────────────────────
+INSERT INTO order_passenger (id, order_id, passenger_id, join_time, pay_status) VALUES
+  ('rec-s1', 'ord-seed-001', 'dev-user-1', '2026-04-13 10:00:00', 'pending'),
+  ('rec-s2', 'ord-seed-002', 'dev-user-2', '2026-04-13 09:00:00', 'pending'),
+  ('rec-s3', 'ord-seed-003', 'dev-user-1', '2026-04-13 08:00:00', 'pending'),
+  ('rec-s4', 'ord-seed-003', 'dev-user-3', '2026-04-13 08:30:00', 'pending'),
+  ('rec-s5', 'ord-seed-003', 'dev-user-4', '2026-04-13 09:00:00', 'pending');
+
+-- ─────────────────────────────────────────────
+-- 状态日志（覆盖 ord-seed-003 的完整流转轨迹）
+-- ─────────────────────────────────────────────
+INSERT INTO order_status_log (order_id, from_status, to_status, operator_user_id, changed_at) VALUES
+  ('ord-seed-003', NULL,        'published', NULL, '2026-04-13 08:00:00'),
+  ('ord-seed-003', 'published', 'locked',    NULL, '2026-04-13 12:00:00');
+-- operator_user_id 为 BIGINT，dev 环境用字符串 userId，此处留 NULL；对接 account_db 后填入真实数字 ID
