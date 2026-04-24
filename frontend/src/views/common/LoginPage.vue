@@ -46,7 +46,7 @@ async function login() {
     role: 'user',
     ownerVerified: false,
     username: username.value,
-    userId: 'dev-user-1',   // 供 ride 域等其他域用 X-User-Id 识别身份
+    userId: username.value,   // 供 ride 域等其他域用 X-User-Id 识别身份
   }))
   router.push('/passenger/home')
 }
