@@ -24,6 +24,30 @@ CREATE TABLE IF NOT EXISTS vehicle (
 ) COMMENT '车辆信息';
 
 -- ─────────────────────────────────────────────
+-- 车辆认证申请表（车主提交，管理员审核）
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS vehicle_verify_request (
+  id                 BIGINT       PRIMARY KEY AUTO_INCREMENT,
+  vehicle_id         BIGINT       NOT NULL               COMMENT '车辆 ID',
+  owner_user_id      VARCHAR(64)  NOT NULL               COMMENT '车主 userId',
+  owner_name         VARCHAR(64)  NOT NULL               COMMENT '车主真实姓名',
+  id_no              VARCHAR(32)  NOT NULL               COMMENT '身份证号',
+  driver_license_no  VARCHAR(64)  NOT NULL               COMMENT '驾驶证号',
+  vehicle_license_no VARCHAR(64)  NOT NULL               COMMENT '行驶证号',
+  contact_phone      VARCHAR(32)  DEFAULT ''             COMMENT '联系电话',
+  remark             VARCHAR(255) DEFAULT ''             COMMENT '补充说明',
+  status             ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  review_note        VARCHAR(255) DEFAULT ''             COMMENT '审核备注',
+  reviewed_by        VARCHAR(64)  NULL                   COMMENT '审核人 userId',
+  reviewed_at        DATETIME     NULL                   COMMENT '审核时间',
+  created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_vvr_vehicle (vehicle_id),
+  INDEX idx_vvr_owner (owner_user_id),
+  INDEX idx_vvr_status (status)
+) COMMENT '车辆认证申请';
+
+-- ─────────────────────────────────────────────
 -- 订单主表（hws 负责）
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS orders (

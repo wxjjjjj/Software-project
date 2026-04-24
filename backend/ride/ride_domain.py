@@ -48,6 +48,22 @@ class VehicleVerifyUpdateRequest(BaseModel):
     verified: bool
 
 
+# 车主提交车辆认证资料接口的请求体。
+class VehicleVerifySubmitRequest(BaseModel):
+    owner_name: str
+    id_no: str
+    driver_license_no: str
+    vehicle_license_no: str
+    contact_phone: str = ""
+    remark: str = ""
+
+
+# 管理员审核车辆认证资料接口的请求体。
+class VehicleVerifyReviewRequest(BaseModel):
+    decision: str  # approved / rejected
+    review_note: str = ""
+
+
 ORDER_STORE = {
     10001: {
         "orderId": 10001,
@@ -64,9 +80,12 @@ ORDER_STORE = {
 
 VEHICLE_STORE = {}
 
+VEHICLE_VERIFY_REQUEST_STORE = {}
+
 
 # 车辆状态白名单（Mock 与 DB 模式共用）。
 ALLOWED_VEHICLE_STATUS = {"available", "disabled"}
+ALLOWED_VERIFY_REQUEST_STATUS = {"pending", "approved", "rejected"}
 
 
 def _format_order_row(row: dict) -> dict:
@@ -102,6 +121,21 @@ def _validate_seat_capacity(seat_capacity: int) -> None:
         )
 
 
+def _as_bool(value) -> bool:
+    # 统一解析布尔值，避免把字符串 "0" / "false" 误判为 True。
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"1", "true", "yes", "y", "on"}:
+            return True
+        if text in {"0", "false", "no", "n", "off", ""}:
+            return False
+    return bool(value)
+
+
 def _format_vehicle_row(row: dict) -> dict:
     # 把数据库字段映射成前端使用的字段名。
     return {
@@ -112,9 +146,46 @@ def _format_vehicle_row(row: dict) -> dict:
         "color": row.get("color") or "",
         "seat_capacity": int(row["seat_capacity"]),
         # SQL 里暂未强制要求该字段，先保持兼容前端展示。
-        "verified": bool(row.get("verified", 0)),
+        "verified": _as_bool(row.get("verified", 0)),
         "status": row["status"],
     }
+
+
+def _format_verify_request_row(row: dict) -> dict:
+    return {
+        "request_id": row["id"],
+        "vehicle_id": row["vehicle_id"],
+        "owner_user_id": str(row["owner_user_id"]),
+        "owner_name": row["owner_name"],
+        "id_no": row["id_no"],
+        "driver_license_no": row["driver_license_no"],
+        "vehicle_license_no": row["vehicle_license_no"],
+        "contact_phone": row.get("contact_phone") or "",
+        "remark": row.get("remark") or "",
+        "status": row["status"],
+        "review_note": row.get("review_note") or "",
+        "reviewed_by": row.get("reviewed_by"),
+        "reviewed_at": row.get("reviewed_at").isoformat(timespec="seconds")
+        if isinstance(row.get("reviewed_at"), datetime)
+        else row.get("reviewed_at"),
+        "created_at": row.get("created_at").isoformat(timespec="seconds")
+        if isinstance(row.get("created_at"), datetime)
+        else row.get("created_at"),
+        "vehicle": {
+            "plate_no": row.get("plate_no") or "",
+            "brand": row.get("brand") or "",
+            "color": row.get("color") or "",
+            "seat_capacity": int(row.get("seat_capacity") or 0),
+            "verified": _as_bool(row.get("verified", 0)),
+        },
+    }
+
+
+def _mask_id_no(id_no: str) -> str:
+    text = (id_no or "").strip()
+    if len(text) <= 8:
+        return text
+    return f"{text[:4]}****{text[-4:]}"
 
 
 def search_orders() -> dict:
@@ -354,7 +425,7 @@ def list_vehicles(owner_user_id: str = "dev-user-1") -> dict:
                     cursor.execute(
                         (
                             "SELECT id, owner_user_id, plate_no, brand, "
-                            "color, seat_capacity, status "
+                            "color, seat_capacity, verified, status "
                             "FROM vehicle WHERE owner_user_id=%s "
                             "ORDER BY id DESC"
                         ),
@@ -486,7 +557,7 @@ def update_vehicle(vehicle_id: int, payload: VehicleUpdateRequest) -> dict:
                     cursor.execute(
                         (
                             "SELECT id, owner_user_id, plate_no, brand, color, "
-                            "seat_capacity, status "
+                            "seat_capacity, verified, status "
                             "FROM vehicle WHERE id=%s"
                         ),
                         (vehicle_id,),
@@ -534,7 +605,7 @@ def update_vehicle(vehicle_id: int, payload: VehicleUpdateRequest) -> dict:
                     cursor.execute(
                         (
                             "SELECT id, owner_user_id, plate_no, brand, color, "
-                            "seat_capacity, status "
+                            "seat_capacity, verified, status "
                             "FROM vehicle WHERE id=%s"
                         ),
                         (vehicle_id,),
@@ -696,6 +767,245 @@ def update_vehicle_verified(
         "message": "vehicle verification updated",
         "vehicle_id": vehicle_id,
         "verified": payload.verified,
+    }
+
+
+def submit_vehicle_verify_request(
+    vehicle_id: int,
+    payload: VehicleVerifySubmitRequest,
+    owner_user_id: str,
+) -> dict:
+    # 真实库模式：校验车辆归属并写入待审核资料。
+    if not RIDE_USE_MOCK:
+        try:
+            with get_ride_conn() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, owner_user_id, verified FROM vehicle WHERE id=%s",
+                        (vehicle_id,),
+                    )
+                    vehicle = cursor.fetchone()
+                    if not vehicle:
+                        raise HTTPException(status_code=404, detail="vehicle not found")
+                    if str(vehicle["owner_user_id"]) != str(owner_user_id):
+                        raise HTTPException(status_code=403, detail="no permission for this vehicle")
+                    if _as_bool(vehicle.get("verified", 0)):
+                        raise HTTPException(status_code=409, detail="vehicle already verified")
+
+                    cursor.execute(
+                        (
+                            "SELECT id FROM vehicle_verify_request "
+                            "WHERE vehicle_id=%s AND status='pending' LIMIT 1"
+                        ),
+                        (vehicle_id,),
+                    )
+                    pending = cursor.fetchone()
+                    if pending:
+                        raise HTTPException(status_code=409, detail="verification request already pending")
+
+                    cursor.execute(
+                        (
+                            "INSERT INTO vehicle_verify_request "
+                            "(vehicle_id, owner_user_id, owner_name, id_no, "
+                            "driver_license_no, vehicle_license_no, contact_phone, remark, status) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending')"
+                        ),
+                        (
+                            vehicle_id,
+                            owner_user_id,
+                            payload.owner_name,
+                            payload.id_no,
+                            payload.driver_license_no,
+                            payload.vehicle_license_no,
+                            payload.contact_phone,
+                            payload.remark,
+                        ),
+                    )
+                    request_id = cursor.lastrowid
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"ride db error: {exc}") from exc
+
+        return {
+            "message": "vehicle verification request submitted",
+            "request_id": request_id,
+            "vehicle_id": vehicle_id,
+            "status": "pending",
+        }
+
+    # Mock 模式：在内存中记录待审核资料。
+    vehicle = VEHICLE_STORE.get(vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="vehicle not found")
+    if str(vehicle["owner_id"]) != str(owner_user_id):
+        raise HTTPException(status_code=403, detail="no permission for this vehicle")
+    if _as_bool(vehicle.get("verified", False)):
+        raise HTTPException(status_code=409, detail="vehicle already verified")
+
+    exists_pending = any(
+        item["vehicle_id"] == vehicle_id and item["status"] == "pending"
+        for item in VEHICLE_VERIFY_REQUEST_STORE.values()
+    )
+    if exists_pending:
+        raise HTTPException(status_code=409, detail="verification request already pending")
+
+    request_id = max(VEHICLE_VERIFY_REQUEST_STORE.keys(), default=90000) + 1
+    VEHICLE_VERIFY_REQUEST_STORE[request_id] = {
+        "request_id": request_id,
+        "vehicle_id": vehicle_id,
+        "owner_user_id": owner_user_id,
+        "owner_name": payload.owner_name,
+        "id_no": payload.id_no,
+        "driver_license_no": payload.driver_license_no,
+        "vehicle_license_no": payload.vehicle_license_no,
+        "contact_phone": payload.contact_phone,
+        "remark": payload.remark,
+        "status": "pending",
+        "review_note": "",
+        "reviewed_by": None,
+        "reviewed_at": None,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "vehicle": {
+            "plate_no": vehicle["plate_no"],
+            "brand": vehicle["brand"],
+            "color": vehicle["color"],
+            "seat_capacity": vehicle["seat_capacity"],
+            "verified": _as_bool(vehicle.get("verified", False)),
+        },
+    }
+    return {
+        "message": "vehicle verification request submitted",
+        "request_id": request_id,
+        "vehicle_id": vehicle_id,
+        "status": "pending",
+    }
+
+
+def list_vehicle_verify_requests(status: Optional[str] = "pending") -> dict:
+    normalized_status = None
+    if status:
+        normalized_status = status.strip().lower()
+        if normalized_status and normalized_status not in ALLOWED_VERIFY_REQUEST_STATUS:
+            raise HTTPException(
+                status_code=400,
+                detail="status must be one of: pending, approved, rejected",
+            )
+
+    # 真实库模式：读取认证申请列表。
+    if not RIDE_USE_MOCK:
+        try:
+            with get_ride_conn() as conn:
+                with conn.cursor() as cursor:
+                    sql = (
+                        "SELECT r.id, r.vehicle_id, r.owner_user_id, r.owner_name, r.id_no, "
+                        "r.driver_license_no, r.vehicle_license_no, r.contact_phone, r.remark, "
+                        "r.status, r.review_note, r.reviewed_by, r.reviewed_at, r.created_at, "
+                        "v.plate_no, v.brand, v.color, v.seat_capacity, v.verified "
+                        "FROM vehicle_verify_request r "
+                        "JOIN vehicle v ON v.id=r.vehicle_id "
+                    )
+                    args = ()
+                    if normalized_status:
+                        sql += "WHERE r.status=%s "
+                        args = (normalized_status,)
+                    sql += "ORDER BY r.created_at DESC"
+                    cursor.execute(sql, args)
+                    rows = cursor.fetchall()
+
+                    items = []
+                    for row in rows:
+                        item = _format_verify_request_row(row)
+                        item["id_no_masked"] = _mask_id_no(item["id_no"])
+                        items.append(item)
+                    return {"items": items}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"ride db error: {exc}") from exc
+
+    # Mock 模式：过滤并返回内存申请。
+    items = []
+    for req in VEHICLE_VERIFY_REQUEST_STORE.values():
+        if normalized_status and req["status"] != normalized_status:
+            continue
+        item = dict(req)
+        item["id_no_masked"] = _mask_id_no(item.get("id_no", ""))
+        items.append(item)
+    items.sort(key=lambda x: x.get("request_id", 0), reverse=True)
+    return {"items": items}
+
+
+def review_vehicle_verify_request(
+    request_id: int,
+    payload: VehicleVerifyReviewRequest,
+    reviewer_user_id: str,
+) -> dict:
+    decision = (payload.decision or "").strip().lower()
+    if decision not in {"approved", "rejected"}:
+        raise HTTPException(status_code=400, detail="decision must be approved or rejected")
+
+    # 真实库模式：更新申请状态并在通过时更新车辆认证。
+    if not RIDE_USE_MOCK:
+        try:
+            with get_ride_conn() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id, vehicle_id, status FROM vehicle_verify_request WHERE id=%s",
+                        (request_id,),
+                    )
+                    req = cursor.fetchone()
+                    if not req:
+                        raise HTTPException(status_code=404, detail="verification request not found")
+                    if req["status"] != "pending":
+                        raise HTTPException(status_code=409, detail="verification request already reviewed")
+
+                    cursor.execute(
+                        (
+                            "UPDATE vehicle_verify_request SET "
+                            "status=%s, review_note=%s, reviewed_by=%s, reviewed_at=%s "
+                            "WHERE id=%s"
+                        ),
+                        (decision, payload.review_note, reviewer_user_id, datetime.now(), request_id),
+                    )
+
+                    if decision == "approved":
+                        cursor.execute(
+                            "UPDATE vehicle SET verified=1 WHERE id=%s",
+                            (req["vehicle_id"],),
+                        )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"ride db error: {exc}") from exc
+
+        return {
+            "message": "vehicle verification request reviewed",
+            "request_id": request_id,
+            "decision": decision,
+        }
+
+    # Mock 模式：更新申请与车辆字段。
+    req = VEHICLE_VERIFY_REQUEST_STORE.get(request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="verification request not found")
+    if req["status"] != "pending":
+        raise HTTPException(status_code=409, detail="verification request already reviewed")
+
+    req["status"] = decision
+    req["review_note"] = payload.review_note
+    req["reviewed_by"] = reviewer_user_id
+    req["reviewed_at"] = datetime.now().isoformat(timespec="seconds")
+
+    if decision == "approved":
+        vehicle = VEHICLE_STORE.get(req["vehicle_id"])
+        if vehicle:
+            vehicle["verified"] = True
+
+    return {
+        "message": "vehicle verification request reviewed",
+        "request_id": request_id,
+        "decision": decision,
     }
 
 

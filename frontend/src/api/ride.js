@@ -21,8 +21,12 @@ function getUserId() {
 }
 
 function buildHeaders(isJson = true) {
+  const session = getSession()
   const headers = {
     'X-User-Id': getUserId()
+  }
+  if (session.role === 'admin') {
+    headers['X-User-Role'] = 'admin'
   }
   if (isJson) {
     headers['Content-Type'] = 'application/json'
@@ -81,5 +85,41 @@ export function deleteOwnerVehicle(vehicleId) {
   return request(`/api/vehicles/${vehicleId}`, {
     method: 'DELETE',
     headers: buildHeaders(false)
+  })
+}
+
+export function updateAdminVehicleVerified(vehicleId, verified) {
+  // 管理员修改车辆认证状态。
+  return request(`/api/vehicles/${vehicleId}/verified`, {
+    method: 'PATCH',
+    headers: buildHeaders(true),
+    body: JSON.stringify({ verified })
+  })
+}
+
+export function submitVehicleVerifyRequest(vehicleId, payload) {
+  // 车主提交车辆认证资料。
+  return request(`/api/vehicles/${vehicleId}/verify-request`, {
+    method: 'POST',
+    headers: buildHeaders(true),
+    body: JSON.stringify(payload)
+  })
+}
+
+export function fetchVehicleVerifyRequests(status = 'pending') {
+  // 管理员获取车辆认证申请列表。
+  const query = status ? `?status=${encodeURIComponent(status)}` : ''
+  return request(`/api/vehicles/verify-requests${query}`, {
+    method: 'GET',
+    headers: buildHeaders(false)
+  })
+}
+
+export function reviewVehicleVerifyRequest(requestId, decision, review_note = '') {
+  // 管理员审核车辆认证资料。
+  return request(`/api/vehicles/verify-requests/${requestId}/review`, {
+    method: 'PATCH',
+    headers: buildHeaders(true),
+    body: JSON.stringify({ decision, review_note })
   })
 }

@@ -28,6 +28,7 @@ import OwnerFeedback from '../views/owner/OwnerFeedback.vue'//yzr
 import AdminLogin from '../views/admin/AdminLogin.vue'//wyx
 import AdminUsers from '../views/admin/AdminUsers.vue'//wyx
 import AdminOrders from '../views/admin/AdminOrders.vue'//hws、zj
+import AdminVehicles from '../views/admin/AdminVehicles.vue'//zj
 import AdminFeedback from '../views/admin/AdminFeedback.vue'//yzr
 
 function getSession() {
@@ -83,6 +84,7 @@ const routes = [
 
       { path: 'driver/home', component: OwnerHome, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/certification', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
+      { path: 'driver/vehicles/:vehicleId/verify', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/available', component: OwnerOrderAvailable, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/mine', component: OwnerOrderMine, meta: { requiresAuth: true, role: 'driver' } },
@@ -91,11 +93,13 @@ const routes = [
 
       { path: 'admin/users', component: AdminUsers, meta: { requiresAuth: true, role: 'admin' } },
       { path: 'admin/orders', component: AdminOrders, meta: { requiresAuth: true, role: 'admin' } },
+      { path: 'admin/vehicles', component: AdminVehicles, meta: { requiresAuth: true, role: 'admin' } },
       { path: 'admin/feedback', component: AdminFeedback, meta: { requiresAuth: true, role: 'admin' } },
 
       //这里就是owner和driver都可以定向到driver，这样的目的是语义上的双重身份：车辆的owner，乘客的driver（虽然不是非必需的）
       { path: 'owner/home', redirect: '/driver/home' },
       { path: 'owner/certification', redirect: '/driver/certification' },
+      { path: 'owner/vehicles/:vehicleId/verify', redirect: '/driver/vehicles/:vehicleId/verify' },
       { path: 'owner/vehicles', redirect: '/driver/vehicles' },
       { path: 'owner/orders/available', redirect: '/driver/orders/available' },
       { path: 'owner/orders/mine', redirect: '/driver/orders/mine' },

@@ -65,6 +65,7 @@ const tabItems = computed(() => {
     return [
       { path: '/admin/users', label: '用户', icon: 'manager-o' },
       { path: '/admin/orders', label: '订单', icon: 'todo-list-o' },
+      { path: '/admin/vehicles', label: '车辆', icon: 'logistics' },
       { path: '/admin/feedback', label: '反馈', icon: 'chat-o' }
     ]
   }

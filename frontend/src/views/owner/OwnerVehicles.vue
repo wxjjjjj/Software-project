@@ -81,6 +81,15 @@
           <div class="item-actions">
             <van-button size="small" type="primary" plain @click="startEdit(item)">编辑</van-button>
             <van-button
+              v-if="!item.verified"
+              size="small"
+              type="success"
+              plain
+              @click="goVerify(item.vehicleId)"
+            >
+              去认证
+            </van-button>
+            <van-button
               size="small"
               :type="item.status === 'available' ? 'warning' : 'success'"
               plain
@@ -98,6 +107,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { showNotify, showConfirmDialog } from 'vant'
 import {
   createOwnerVehicle,
@@ -112,6 +122,7 @@ const vehicles = ref([])
 const editingId = ref(null)
 const loading = ref(false)
 const submitting = ref(false)
+const router = useRouter()
 
 // 表单模型：新增与编辑共用。
 const form = reactive({
@@ -147,6 +158,26 @@ function resolveOwnerUserId() {
   return 'dev-user-1'
 }
 
+function normalizeVerified(value) {
+  // 避免把字符串 "0" / "false" 当成真值，导致前端误显示已认证。
+  if (typeof value === 'boolean') {
+    return value
+  }
+  if (typeof value === 'number') {
+    return value !== 0
+  }
+  if (typeof value === 'string') {
+    const text = value.trim().toLowerCase()
+    if (['1', 'true', 'yes', 'y', 'on'].includes(text)) {
+      return true
+    }
+    if (['0', 'false', 'no', 'n', 'off', ''].includes(text)) {
+      return false
+    }
+  }
+  return Boolean(value)
+}
+
 function normalizeVehicle(item) {
   // 兼容后端字段差异，统一成页面使用的数据结构。
   return {
@@ -156,7 +187,7 @@ function normalizeVehicle(item) {
     brand: String(item.brand ?? ''),
     color: String(item.color ?? ''),
     seatCapacity: Number(item.seatCapacity ?? item.seat_capacity ?? 4),
-    verified: Boolean(item.verified),
+    verified: normalizeVerified(item.verified),
     status: item.status === 'disabled' ? 'disabled' : 'available'
   }
 }
@@ -238,6 +269,10 @@ function startEdit(item) {
 
 function cancelEdit() {
   resetForm()
+}
+
+function goVerify(vehicleId) {
+  router.push(`/driver/vehicles/${vehicleId}/verify`)
 }
 
 function resetForm() {
