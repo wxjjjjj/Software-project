@@ -108,6 +108,15 @@ async def ride_vehicles_proxy(path: str, request: Request):
 
 
 @app.api_route(
+    "/api/vehicles",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+)
+async def ride_vehicles_root_proxy(request: Request):
+    # 转发 /api/vehicles 根路径请求（查询/新增）到订单域服务。
+    return await _forward(request, RIDE_SERVICE_URL)
+
+
+@app.api_route(
     "/api/driver/orders/{path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
 )

@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Always load backend/.env no matter where uvicorn is started from.
+_BACKEND_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(dotenv_path=_BACKEND_ENV_PATH)
 
 
 def _as_bool(value: str, default: bool = False) -> bool:

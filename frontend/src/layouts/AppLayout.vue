@@ -73,6 +73,8 @@ const tabItems = computed(() => {
     return [
       { path: '/driver/home', label: '首页', icon: 'home-o' },
       { path: '/driver/orders/available', label: '接单', icon: 'fire-o' },
+      // 车主车辆管理入口。
+      { path: '/driver/vehicles', label: '车辆', icon: 'logistics' },
       { path: '/driver/orders/mine', label: '我的', icon: 'notes-o' },
       { path: '/driver/wallet', label: '钱包', icon: 'balance-o' }
     ]
