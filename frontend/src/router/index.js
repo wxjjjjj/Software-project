@@ -82,7 +82,10 @@ const routes = [
       { path: 'passenger/feedback', component: PassengerFeedback, meta: { requiresAuth: true, role: 'passenger' } },
 
       { path: 'driver/home', component: OwnerHome, meta: { requiresAuth: true, role: 'driver' } },
-      { path: 'driver/certification', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
+      // [WYX 修改] 
+      // 修改前：{ path: 'driver/certification', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
+      // 修改后：将 role 改为 passenger，因为申请车主是乘客的行为
+      { path: 'driver/certification',component: OwnerCertification,meta: {requiresAuth: true,role: 'passenger' }},// [WYX-NOTE] 允许乘客进入认证页面，否则逻辑死锁
       { path: 'driver/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/available', component: OwnerOrderAvailable, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/mine', component: OwnerOrderMine, meta: { requiresAuth: true, role: 'driver' } },

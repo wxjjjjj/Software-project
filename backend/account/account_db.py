@@ -1,33 +1,16 @@
-from contextlib import contextmanager
-
 import pymysql
+import os
+from dotenv import load_dotenv
 
-from backend.common.config import (
-    ACCOUNT_DB_HOST,
-    ACCOUNT_DB_NAME,
-    ACCOUNT_DB_PASSWORD,
-    ACCOUNT_DB_PORT,
-    ACCOUNT_DB_USER,
-)
+load_dotenv()
 
-
-@contextmanager
-def get_account_conn():
-    conn = pymysql.connect(
-        host=ACCOUNT_DB_HOST,
-        port=ACCOUNT_DB_PORT,
-        user=ACCOUNT_DB_USER,
-        password=ACCOUNT_DB_PASSWORD,
-        database=ACCOUNT_DB_NAME,
-        charset="utf8mb4",
-        autocommit=False,
-        cursorclass=pymysql.cursors.DictCursor,
+def get_db_connection():
+    return pymysql.connect(
+        host=os.getenv("ACCOUNT_DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("ACCOUNT_DB_PORT", 3306)),
+        user=os.getenv("ACCOUNT_DB_USER", "root"),
+        password=os.getenv("ACCOUNT_DB_PASSWORD", "123456"),
+        database=os.getenv("ACCOUNT_DB_NAME", "account_db"),
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
     )
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
