@@ -139,19 +139,19 @@ function readSession() {
 
 function resolveOwnerUserId() {
   const session = readSession()
-  const parsed = Number(session.userId)
-  if (Number.isInteger(parsed) && parsed > 0) {
-    return parsed
+  const userId = session.userId || session.username
+  if (userId) {
+    return String(userId)
   }
   // 开发阶段兜底，避免 session 缺失 userId 时页面不可用。
-  return 20001
+  return 'dev-user-1'
 }
 
 function normalizeVehicle(item) {
   // 兼容后端字段差异，统一成页面使用的数据结构。
   return {
-    vehicleId: Number(item.vehicleId ?? item.id),
-    ownerUserId: Number(item.ownerUserId ?? item.owner_user_id ?? ownerUserId.value),
+    vehicleId: item.vehicleId ?? item.vehicle_id ?? item.id,
+    ownerUserId: String(item.ownerUserId ?? item.owner_id ?? item.owner_user_id ?? ownerUserId.value),
     plateNo: String(item.plateNo ?? item.plate_no ?? '').toUpperCase(),
     brand: String(item.brand ?? ''),
     color: String(item.color ?? ''),
@@ -165,7 +165,7 @@ async function refreshVehicles() {
   // 拉取最新数据；后端会根据开关决定走 Mock 还是数据库。
   loading.value = true
   try {
-    const data = await fetchOwnerVehicles(ownerUserId.value)
+    const data = await fetchOwnerVehicles()
     const rawItems = Array.isArray(data.items)
       ? data.items
       : Array.isArray(data.vehicles)
@@ -191,14 +191,14 @@ async function onSubmit() {
   }
 
   const payload = {
-    plateNo: form.plateNo.toUpperCase(),
+    plate_no: form.plateNo.toUpperCase(),
     brand: form.brand,
     color: form.color,
-    seatCapacity: Number(form.seatCapacity)
+    seat_capacity: Number(form.seatCapacity)
   }
 
   const duplicate = vehicles.value.some(
-    (item) => item.plateNo === payload.plateNo && item.vehicleId !== editingId.value
+    (item) => item.plateNo === payload.plate_no && item.vehicleId !== editingId.value
   )
   if (duplicate) {
     showNotify({ type: 'warning', message: '车牌号已存在' })
@@ -213,7 +213,7 @@ async function onSubmit() {
       showNotify({ type: 'success', message: '车辆信息已更新' })
     } else {
       await createOwnerVehicle({
-        ownerUserId: ownerUserId.value,
+        owner_id: ownerUserId.value,
         ...payload
       })
       showNotify({ type: 'success', message: '车辆添加成功' })

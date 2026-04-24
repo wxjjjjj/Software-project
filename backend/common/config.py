@@ -38,5 +38,5 @@ OPS_DB_PASSWORD = os.getenv("OPS_DB_PASSWORD", "")
 
 # 供三域在数据库未完成时切换 mock 的开关
 ACCOUNT_USE_MOCK = _as_bool(os.getenv("ACCOUNT_USE_MOCK"), default=True)
-RIDE_USE_MOCK = _as_bool(os.getenv("RIDE_USE_MOCK"), default=True)
+RIDE_USE_MOCK = _as_bool(os.getenv("RIDE_USE_MOCK"), default=False)
 OPS_USE_MOCK = _as_bool(os.getenv("OPS_USE_MOCK"), default=True)

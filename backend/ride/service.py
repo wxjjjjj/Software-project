@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.ride.ride_domain import (
@@ -61,15 +61,18 @@ def passenger_confirm(order_id: int):
 
 
 @app.get("/api/vehicles")
-def list_vehicles(ownerUserId: int = 20001):
-    # 查询车主名下车辆列表。
-    return ride_list_vehicles(ownerUserId)
+def list_vehicles(x_user_id: str = Header(default="dev-user-1", alias="X-User-Id")):
+    # 按当前登录用户查询车辆。
+    return ride_list_vehicles(x_user_id)
 
 
 @app.post("/api/vehicles")
-def create_vehicle(payload: VehicleCreateRequest):
+def create_vehicle(
+    payload: VehicleCreateRequest,
+    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+):
     # 新增车辆。
-    return ride_create_vehicle(payload)
+    return ride_create_vehicle(payload, x_user_id)
 
 
 @app.put("/api/vehicles/{vehicle_id}")

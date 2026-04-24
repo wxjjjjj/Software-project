@@ -7,6 +7,29 @@ function buildErrorMessage(payload, fallback) {
   return fallback
 }
 
+function getSession() {
+  try {
+    return JSON.parse(localStorage.getItem('session') || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function getUserId() {
+  const session = getSession()
+  return String(session.userId || session.username || 'dev-user-1')
+}
+
+function buildHeaders(isJson = true) {
+  const headers = {
+    'X-User-Id': getUserId()
+  }
+  if (isJson) {
+    headers['Content-Type'] = 'application/json'
+  }
+  return headers
+}
+
 async function request(url, options = {}) {
   // 车辆相关接口通用请求封装。
   const response = await fetch(url, options)
@@ -18,16 +41,19 @@ async function request(url, options = {}) {
   return payload
 }
 
-export function fetchOwnerVehicles(ownerUserId) {
-  // 查询指定车主的车辆列表。
-  return request(`/api/vehicles?ownerUserId=${encodeURIComponent(ownerUserId)}`)
+export function fetchOwnerVehicles() {
+  // 查询当前登录车主的车辆列表。
+  return request('/api/vehicles', {
+    method: 'GET',
+    headers: buildHeaders(false)
+  })
 }
 
 export function createOwnerVehicle(payload) {
   // 新增车辆。
   return request('/api/vehicles', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(true),
     body: JSON.stringify(payload)
   })
 }
@@ -36,7 +62,7 @@ export function updateOwnerVehicle(vehicleId, payload) {
   // 编辑车辆基础信息。
   return request(`/api/vehicles/${vehicleId}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(true),
     body: JSON.stringify(payload)
   })
 }
@@ -45,7 +71,7 @@ export function updateOwnerVehicleStatus(vehicleId, status) {
   // 更新车辆状态（available/disabled）。
   return request(`/api/vehicles/${vehicleId}/status`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: buildHeaders(true),
     body: JSON.stringify({ status })
   })
 }
@@ -53,6 +79,7 @@ export function updateOwnerVehicleStatus(vehicleId, status) {
 export function deleteOwnerVehicle(vehicleId) {
   // 按车辆 id 删除记录。
   return request(`/api/vehicles/${vehicleId}`, {
-    method: 'DELETE'
+    method: 'DELETE',
+    headers: buildHeaders(false)
   })
 }

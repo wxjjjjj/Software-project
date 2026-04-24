@@ -55,7 +55,8 @@
 ### 接口1：查询车辆列表
 
 ```http
-GET /api/vehicles?ownerUserId=20001
+GET /api/vehicles
+X-User-Id: dev-user-1
 ```
 
 响应示例：
@@ -64,12 +65,12 @@ GET /api/vehicles?ownerUserId=20001
 {
   "items": [
     {
-      "vehicleId": 30001,
-      "ownerUserId": 20001,
-      "plateNo": "沪A12345",
+      "vehicle_id": 30001,
+      "owner_id": "dev-user-1",
+      "plate_no": "沪A12345",
       "brand": "比亚迪秦",
       "color": "白色",
-      "seatCapacity": 5,
+      "seat_capacity": 5,
       "verified": false,
       "status": "available"
     }
@@ -90,11 +91,11 @@ Content-Type: application/json
 
 ```json
 {
-  "ownerUserId": 20001,
-  "plateNo": "沪A12345",
+  "owner_id": "dev-user-1",
+  "plate_no": "沪A12345",
   "brand": "比亚迪秦",
   "color": "白色",
-  "seatCapacity": 5
+  "seat_capacity": 5
 }
 ```
 
@@ -103,7 +104,7 @@ Content-Type: application/json
 ```json
 {
   "message": "vehicle created",
-  "vehicleId": 30002,
+  "vehicle_id": 30002,
   "status": "available"
 }
 ```
@@ -123,7 +124,7 @@ Content-Type: application/json
 {
   "brand": "本田 雅阁",
   "color": "深空黑",
-  "seatCapacity": 5
+  "seat_capacity": 5
 }
 ```
 
@@ -159,7 +160,7 @@ DELETE /api/vehicles/{vehicle_id}
 ```json
 {
   "message": "vehicle deleted",
-  "vehicleId": 30002
+  "vehicle_id": 30002
 }
 ```
 
@@ -171,7 +172,7 @@ DELETE /api/vehicles/{vehicle_id}
 
 ### 模式A：Mock（`RIDE_USE_MOCK=true`）
 
-- 使用内存数据 `VEHICLE_STORE`
+- 使用运行期内存数据 `VEHICLE_STORE`（不内置固定测试样例）
 - 不连接 MySQL
 - 适合前后端快速联调与演示
 
@@ -179,6 +180,7 @@ DELETE /api/vehicles/{vehicle_id}
 
 - 使用 `ride_db.vehicle` 表
 - 通过 `get_ride_conn()` 执行 SQL CRUD
+- 使用 `sql/ride/002_seed.sql` 初始化测试数据
 - 适合功能验收与真实数据测试
 
 ### 运行时行为
@@ -208,7 +210,7 @@ DELETE /api/vehicles/{vehicle_id}
 
 新增并使用统一封装文件：`frontend/src/api/ride.js`，主要方法：
 
-- `fetchOwnerVehicles(ownerUserId)`
+- `fetchOwnerVehicles()`
 - `createOwnerVehicle(payload)`
 - `updateOwnerVehicle(vehicleId, payload)`
 - `updateOwnerVehicleStatus(vehicleId, status)`

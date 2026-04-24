@@ -2,6 +2,7 @@
 -- Owner: hws（订单核心）+ zj（车辆）
 -- 说明：仅由订单车辆域负责人维护，其他域禁止直接修改表结构
 
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS ride_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE ride_db;
 
@@ -10,11 +11,12 @@ USE ride_db;
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS vehicle (
   id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
-  owner_user_id BIGINT       NOT NULL               COMMENT '车主 userId（来自 account_db，仅存 ID）',
+  owner_user_id VARCHAR(64)  NOT NULL               COMMENT '车主 userId（来自 account_db，仅存 ID）',
   plate_no      VARCHAR(32)  NOT NULL UNIQUE         COMMENT '车牌号',
   brand         VARCHAR(64)                          COMMENT '品牌型号',
   color         VARCHAR(32)                          COMMENT '车辆颜色',
   seat_capacity INT          NOT NULL               COMMENT '总座位数',
+  verified      TINYINT(1)  NOT NULL DEFAULT 0      COMMENT '是否已认证',
   status        ENUM('available','disabled') NOT NULL DEFAULT 'available',
   created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -70,3 +72,16 @@ CREATE TABLE IF NOT EXISTS order_passenger (
   INDEX idx_op_passenger  (passenger_id),
   UNIQUE KEY uq_order_passenger (order_id, passenger_id)
 ) COMMENT '订单参与乘客记录';
+
+-- ─────────────────────────────────────────────
+-- 订单状态日志表（原框架保留，记录状态流转轨迹）
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS order_status_log (
+  id               BIGINT       PRIMARY KEY AUTO_INCREMENT,
+  order_id         VARCHAR(36)  NOT NULL            COMMENT '所属订单 ID',
+  from_status      VARCHAR(32)                      COMMENT '流转前状态（初始创建时为 NULL）',
+  to_status        VARCHAR(32)  NOT NULL            COMMENT '流转后状态',
+  operator_user_id BIGINT                            COMMENT '操作人 userId',
+  changed_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_order_status_log_order_id (order_id)
+) COMMENT '订单状态变更日志';
