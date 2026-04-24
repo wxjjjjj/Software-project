@@ -43,6 +43,11 @@ class VehicleStatusUpdateRequest(BaseModel):
     status: str
 
 
+# 管理员修改车辆认证状态接口的请求体。
+class VehicleVerifyUpdateRequest(BaseModel):
+    verified: bool
+
+
 ORDER_STORE = {
     10001: {
         "orderId": 10001,
@@ -638,6 +643,59 @@ def update_vehicle_status(
         "message": "vehicle status updated",
         "vehicle_id": vehicle_id,
         "status": next_status,
+    }
+
+
+def update_vehicle_verified(
+    vehicle_id: int,
+    payload: VehicleVerifyUpdateRequest,
+) -> dict:
+    # 管理员变更认证状态，统一布尔值到 0/1 落库。
+    verified_value = 1 if payload.verified else 0
+
+    # 真实库模式：更新 verified 字段。
+    if not RIDE_USE_MOCK:
+        try:
+            with get_ride_conn() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM vehicle WHERE id=%s",
+                        (vehicle_id,),
+                    )
+                    exists = cursor.fetchone()
+                    if not exists:
+                        raise HTTPException(
+                            status_code=404,
+                            detail="vehicle not found",
+                        )
+
+                    cursor.execute(
+                        "UPDATE vehicle SET verified=%s WHERE id=%s",
+                        (verified_value, vehicle_id),
+                    )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"ride db error: {exc}",
+            ) from exc
+
+        return {
+            "message": "vehicle verification updated",
+            "vehicle_id": vehicle_id,
+            "verified": payload.verified,
+        }
+
+    # Mock 模式：更新内存字段。
+    vehicle = VEHICLE_STORE.get(vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="vehicle not found")
+    vehicle["verified"] = payload.verified
+    return {
+        "message": "vehicle verification updated",
+        "vehicle_id": vehicle_id,
+        "verified": payload.verified,
     }
 
 

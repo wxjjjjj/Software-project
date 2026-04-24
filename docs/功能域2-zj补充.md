@@ -17,6 +17,7 @@
 6. [本地联调与测试建议](#六本地联调与测试建议)
 7. [代码改动清单](#七代码改动清单)
 8. [对功能域1同学的登录须知](#八对功能域1同学的登录须知)
+9. [对功能域3同学的对接须知（运营域）](#九对功能域3同学的对接须知运营域)
 
 ---
 
@@ -166,6 +167,36 @@ DELETE /api/vehicles/{vehicle_id}
 
 ---
 
+### 接口6：管理员修改车辆认证状态
+
+```http
+PATCH /api/vehicles/{vehicle_id}/verified
+X-User-Role: admin
+Content-Type: application/json
+```
+
+请求示例：
+
+```json
+{
+  "verified": true
+}
+```
+
+成功响应：
+
+```json
+{
+  "message": "vehicle verification updated",
+  "vehicle_id": 30002,
+  "verified": true
+}
+```
+
+说明：该接口仅管理员可调用，普通用户调用返回 `403`。
+
+---
+
 ## 四、Mock 与真实数据库双模式
 
 本次车辆能力遵循订单域现有模式，通过 `RIDE_USE_MOCK` 控制。
@@ -268,11 +299,12 @@ DELETE /api/vehicles/{vehicle_id}
 当前车辆管理页按以下顺序获取当前登录用户：
 
 1. 前端从 `localStorage.session.userId` 读取。
-2. 若缺失，则回退到开发兜底值 `20001`。
+2. 若缺失，则回退读取 `localStorage.session.username`。
+3. 若两者都缺失，才回退到开发兜底值 `dev-user-1`。
 
 这意味着：
 
-- 如果登录后没有把真实 `userId` 写入 session，切换账号后仍可能读到同一份车辆数据。
+- 如果登录后没有把稳定 `userId` 写入 session，会依赖 `username` 兜底，可能导致跨域联调时用户标识口径不一致。
 
 ### 2) 建议登录成功响应结构（功能域1后端）
 
@@ -282,7 +314,7 @@ DELETE /api/vehicles/{vehicle_id}
 {
   "message": "login success",
   "token": "dev-token-1001",
-  "userId": 1001,
+  "userId": "dev-user-1",
   "role": "user",
   "ownerVerified": true,
   "username": "alice"
@@ -298,7 +330,7 @@ DELETE /api/vehicles/{vehicle_id}
 ```json
 {
   "token": "...",
-  "userId": 1001,
+  "userId": "dev-user-1",
   "role": "user",
   "ownerVerified": true,
   "username": "alice"
@@ -307,7 +339,7 @@ DELETE /api/vehicles/{vehicle_id}
 
 其中：
 
-- `userId`：必须为可转数字值（当前车辆页按 `Number(session.userId)` 解析）。
+- `userId`：建议使用稳定字符串主键（示例：`dev-user-1`），避免和展示名混用。
 - `ownerVerified`：决定是否进入车主导航与车主页面。
 
 
@@ -315,5 +347,59 @@ DELETE /api/vehicles/{vehicle_id}
 
 1. 登录后在浏览器检查 `localStorage.session` 是否存在 `userId`。
 2. 切换两个不同账号，确认 `session.userId` 随账号变化。
-3. 进入 `/driver/vehicles`，确认请求参数 `ownerUserId` 与当前账号一致。
+3. 进入 `/driver/vehicles`，确认请求 Header `X-User-Id` 与当前账号一致（不再使用 `ownerUserId` 查询参数）。
+
+---
+
+## 九、对功能域3同学的对接须知（运营域）
+
+本节用于和功能域3（运营域）对齐“管理员车辆审核”和“订单取消惩罚联动”两类事项
+
+### 1) 管理员车辆认证接口（新增）
+
+运营域管理员端如需做车辆审核，可直接调用订单域接口：
+
+```http
+PATCH /api/vehicles/{vehicle_id}/verified
+X-User-Role: admin
+Content-Type: application/json
+```
+
+请求示例：
+
+```json
+{
+  "verified": true
+}
+```
+
+响应示例：
+
+```json
+{
+  "message": "vehicle verification updated",
+  "vehicle_id": 30002,
+  "verified": true
+}
+```
+
+错误码约定：
+
+- `403`：非管理员调用（未携带或错误携带 `X-User-Role: admin`）
+- `404`：车辆不存在
+
+### 2) 订单取消惩罚联动（运营域处理）
+
+当订单域取消接口返回 `penalty: true` 时，表示该次取消应触发信誉/惩罚逻辑；惩罚规则和执行落地由运营域处理。
+
+建议运营域在收到该标记后：
+
+1. 记录惩罚流水（含 `order_id`、操作者、时间）。
+2. 执行对应扣分/限制策略。
+3. 保证同一订单取消事件幂等处理（避免重复扣罚）。
+
+### 3) 联调时的身份字段约定
+
+运营域若通过前端或网关转发调用上述接口，请统一使用账号域落盘的 `session.userId` 作为用户标识，避免与 `username` 混用造成数据归属偏差。
+
 

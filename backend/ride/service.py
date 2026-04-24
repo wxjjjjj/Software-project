@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.ride.ride_domain import (
     DriverAcceptRequest,
     OrderPublishRequest,
     VehicleCreateRequest,
+    VehicleVerifyUpdateRequest,
     VehicleStatusUpdateRequest,
     VehicleUpdateRequest,
 )
@@ -22,6 +23,9 @@ from backend.ride.ride_domain import (
 )
 from backend.ride.ride_domain import (
     update_vehicle_status as ride_update_vehicle_status,
+)
+from backend.ride.ride_domain import (
+    update_vehicle_verified as ride_update_vehicle_verified,
 )
 
 app = FastAPI(title="Ride Service", version="0.1.0")
@@ -85,6 +89,18 @@ def update_vehicle(vehicle_id: int, payload: VehicleUpdateRequest):
 def update_vehicle_status(vehicle_id: int, payload: VehicleStatusUpdateRequest):
     # 切换车辆状态（可用/停用）。
     return ride_update_vehicle_status(vehicle_id, payload)
+
+
+@app.patch("/api/vehicles/{vehicle_id}/verified")
+def update_vehicle_verified(
+    vehicle_id: int,
+    payload: VehicleVerifyUpdateRequest,
+    x_user_role: str = Header(default="user", alias="X-User-Role"),
+):
+    # 仅管理员可修改车辆认证状态。
+    if x_user_role != "admin":
+        raise HTTPException(status_code=403, detail="admin role required")
+    return ride_update_vehicle_verified(vehicle_id, payload)
 
 
 @app.delete("/api/vehicles/{vehicle_id}")

@@ -281,6 +281,38 @@
 
 ---
 
+### 11. 管理员修改车辆认证状态
+
+- **方法**: PATCH  
+- **路径**: `/api/vehicles/{vehicle_id}/verified`  
+- **权限**: 管理员（`X-User-Role: admin`）
+
+**请求 Header**:
+
+| Header | 说明 |
+|--------|------|
+| `X-User-Role` | 必须为 `admin` |
+
+**请求 JSON**:
+```json
+{
+  "verified": true
+}
+```
+
+**响应 JSON**:
+```json
+{
+  "message": "vehicle verification updated",
+  "vehicle_id": 30001,
+  "verified": true
+}
+```
+
+**错误码**: `403`（非管理员）、`404`（车辆不存在）
+
+---
+
 ## 订单状态流转
 
 ```
