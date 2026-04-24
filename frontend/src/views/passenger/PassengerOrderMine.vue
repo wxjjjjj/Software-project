@@ -1,6 +1,6 @@
 <template>
   <div class="mine-page">
-    <van-tabs v-model:active="activeTab" sticky @change="onTabChange">
+    <van-tabs v-model:active="activeTab" @change="onTabChange">
       <van-tab title="全部" name="" />
       <van-tab title="招募中" name="published" />
       <van-tab title="已锁单" name="locked" />

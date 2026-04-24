@@ -154,3 +154,39 @@ export function formatTime(isoStr) {
 
 /** 获取当前登录用户 ID（供页面组件使用） */
 export { getUserId }
+
+// ── 高德地图工具 ──────────────────────────────────────────────────────────────
+
+const AMAP_KEY = 'a94c6fe44b146be2c229894626f0debf'
+
+export async function searchPlaces(keyword, city = '广州') {
+  if (!keyword?.trim()) return []
+  const url = `/amap/v3/place/text?key=${AMAP_KEY}&keywords=${encodeURIComponent(keyword)}&city=${encodeURIComponent(city)}&offset=8&output=JSON`
+  try {
+    const res = await fetch(url)
+    const data = await res.json()
+    if (data.status !== '1' || !data.pois?.length) return []
+    return data.pois.map(p => ({ name: p.name, location: p.location }))
+  } catch {
+    return []
+  }
+}
+
+export async function calcDrivingRoute(originLoc, destLoc) {
+  if (!originLoc || !destLoc) return null
+  const url = `/amap/v3/direction/driving?key=${AMAP_KEY}&origin=${originLoc}&destination=${destLoc}&output=JSON`
+  try {
+    const res = await fetch(url)
+    const data = await res.json()
+    if (data.status !== '1') return null
+    const route = data.route.paths[0]
+    const distance_m = Number(route.distance)
+    const duration_s = Number(route.duration)
+    const km = distance_m / 1000
+    // 上海出租车计费：起步价 16元/3km，超出 3.1元/km
+    const recommend_price = km <= 3 ? 16 : Math.round(16 + (km - 3) * 3.1)
+    return { distance_m, duration_s, recommend_price }
+  } catch {
+    return null
+  }
+}

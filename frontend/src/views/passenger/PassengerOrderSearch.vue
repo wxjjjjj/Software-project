@@ -15,16 +15,15 @@
               placeholder="出发地（不填则不限）"
               clearable
               @input="filterSug('start')"
-              @blur="() => setTimeout(() => showStart = false, 150)"
-              @focus="filterSug('start')"
+              @blur="() => hideDropdown('start')"
               class="ri-field"
             />
             <div v-show="showStart && sugStart.length" class="loc-suggestions">
               <div
-                v-for="s in sugStart" :key="s"
+                v-for="s in sugStart" :key="s.name"
                 class="loc-suggestion-item"
                 @mousedown.prevent="pickSug('start', s)"
-              >{{ s }}</div>
+              >{{ s.name }}</div>
             </div>
           </div>
         </div>
@@ -39,16 +38,15 @@
               placeholder="目的地（不填则不限）"
               clearable
               @input="filterSug('end')"
-              @blur="() => setTimeout(() => showEnd = false, 150)"
-              @focus="filterSug('end')"
+              @blur="() => hideDropdown('end')"
               class="ri-field"
             />
             <div v-show="showEnd && sugEnd.length" class="loc-suggestions">
               <div
-                v-for="s in sugEnd" :key="s"
+                v-for="s in sugEnd" :key="s.name"
                 class="loc-suggestion-item"
                 @mousedown.prevent="pickSug('end', s)"
-              >{{ s }}</div>
+              >{{ s.name }}</div>
             </div>
           </div>
         </div>
@@ -161,7 +159,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { rideApi, STATUS_MAP, formatTime, AVAILABLE_TAGS, LOCATION_SUGGESTIONS } from '@/api/ride.js'
+import { rideApi, STATUS_MAP, formatTime, AVAILABLE_TAGS, searchPlaces } from '@/api/ride.js'
 
 const query          = ref({ start_loc: '', end_loc: '', time_from: '', time_to: '' })
 const selectedTags   = ref([])
@@ -198,18 +196,32 @@ function removeCustomTag(t) {
   customTags.value = customTags.value.filter(x => x !== t)
 }
 
-function filterSug(field) {
-  const kw = (field === 'start' ? query.value.start_loc : query.value.end_loc).toLowerCase()
-  const filtered = kw
-    ? LOCATION_SUGGESTIONS.filter(s => s.toLowerCase().includes(kw))
-    : LOCATION_SUGGESTIONS.slice(0, 6)
-  if (field === 'start') { sugStart.value = filtered; showStart.value = true }
-  else { sugEnd.value = filtered; showEnd.value = true }
+function hideDropdown(field) {
+  setTimeout(() => {
+    if (field === 'start') showStart.value = false
+    else showEnd.value = false
+  }, 150)
 }
 
-function pickSug(field, val) {
-  if (field === 'start') { query.value.start_loc = val; showStart.value = false }
-  else { query.value.end_loc = val; showEnd.value = false }
+let sugTimer = null
+async function filterSug(field) {
+  const kw = field === 'start' ? query.value.start_loc : query.value.end_loc
+  if (!kw?.trim()) {
+    if (field === 'start') { sugStart.value = []; showStart.value = false }
+    else { sugEnd.value = []; showEnd.value = false }
+    return
+  }
+  clearTimeout(sugTimer)
+  sugTimer = setTimeout(async () => {
+    const results = await searchPlaces(kw)
+    if (field === 'start') { sugStart.value = results; showStart.value = results.length > 0 }
+    else { sugEnd.value = results; showEnd.value = results.length > 0 }
+  }, 300)
+}
+
+function pickSug(field, s) {
+  if (field === 'start') { query.value.start_loc = s.name; showStart.value = false }
+  else { query.value.end_loc = s.name; showEnd.value = false }
 }
 
 async function doSearch() {

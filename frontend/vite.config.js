@@ -25,8 +25,13 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: apiTarget, 
+          target: apiTarget,
           changeOrigin: true
+        },
+        '/amap': {
+          target: 'https://restapi.amap.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/amap/, '')
         }
       }
     }

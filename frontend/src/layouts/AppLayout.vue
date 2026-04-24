@@ -19,7 +19,7 @@
         <RouterView />
       </main>
 
-      <van-tabbar route>
+      <van-tabbar route :fixed="false">
         <van-tabbar-item
           v-for="item in tabItems"
           :key="item.path"
@@ -155,24 +155,26 @@ function logout() {
 
 .phone-frame {
   width: min(100%, 420px);
-  min-height: 100vh;
+  height: 100vh;
   background: #ffffff;
   box-shadow: 0 14px 36px rgba(10, 40, 90, 0.15);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  transform: translateZ(0);
 }
 
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 12px 70px;
+  padding: 12px;
+  min-height: 0;
 }
 
 @media (min-width: 760px) {
   .phone-frame {
-    min-height: 92vh;
+    height: 844px;
     border-radius: 22px;
-    overflow: hidden;
   }
 }
 </style>

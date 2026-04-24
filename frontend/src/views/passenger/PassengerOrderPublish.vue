@@ -17,16 +17,15 @@
                 required clearable
                 :rules="[{ required: true, message: '请填写出发地' }]"
                 @input="filterSug('start')"
-                @blur="() => setTimeout(() => showStart = false, 150)"
-                @focus="filterSug('start')"
+                @blur="() => hideDropdown('start')"
                 class="ri-field"
               />
               <div v-show="showStart && sugStart.length" class="loc-suggestions">
                 <div
-                  v-for="s in sugStart" :key="s"
+                  v-for="s in sugStart" :key="s.name"
                   class="loc-suggestion-item"
                   @mousedown.prevent="pickSug('start', s)"
-                >{{ s }}</div>
+                >{{ s.name }}</div>
               </div>
             </div>
           </div>
@@ -42,16 +41,15 @@
                 required clearable
                 :rules="[{ required: true, message: '请填写目的地' }]"
                 @input="filterSug('end')"
-                @blur="() => setTimeout(() => showEnd = false, 150)"
-                @focus="filterSug('end')"
+                @blur="() => hideDropdown('end')"
                 class="ri-field"
               />
               <div v-show="showEnd && sugEnd.length" class="loc-suggestions">
                 <div
-                  v-for="s in sugEnd" :key="s"
+                  v-for="s in sugEnd" :key="s.name"
                   class="loc-suggestion-item"
                   @mousedown.prevent="pickSug('end', s)"
-                >{{ s }}</div>
+                >{{ s.name }}</div>
               </div>
             </div>
           </div>
@@ -125,6 +123,16 @@
             required
             :rules="[{ required: true }]"
           ><template #extra><span class="field-hint">¥</span></template></van-field>
+
+          <!-- 推荐报价提示 -->
+          <div v-if="routeLoading" class="price-hint loading">
+            <van-loading size="14px" />计算推荐报价中…
+          </div>
+          <div v-else-if="recommendPrice" class="price-hint" :class="{ warn: priceTooLow }">
+            <span class="hint-icon">{{ priceTooLow ? '⚠️' : '💡' }}</span>
+            <span>参考报价 <b>¥{{ recommendPrice }}</b>（按上海出租车计费）</span>
+            <span v-if="priceTooLow" class="warn-text">低于参考价，可能无司机接单</span>
+          </div>
         </van-cell-group>
       </div>
 
@@ -177,7 +185,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showSuccessToast } from 'vant'
-import { rideApi, AVAILABLE_TAGS, LOCATION_SUGGESTIONS, calcPerPersonPrice } from '@/api/ride.js'
+import { rideApi, AVAILABLE_TAGS, calcPerPersonPrice, searchPlaces, calcDrivingRoute } from '@/api/ride.js'
 
 const router     = useRouter()
 const submitting = ref(false)
@@ -189,6 +197,14 @@ const showEnd   = ref(false)
 const sugStart  = ref([])
 const sugEnd    = ref([])
 
+// 推荐报价相关
+const recommendPrice = ref(null)
+const routeLoading   = ref(false)
+const startLoc = ref(null)
+const endLoc   = ref(null)
+let searchTimer = null
+let routeTimer = null
+
 const form = ref({
   start_loc: '', end_loc: '',
   depart_time_from: '', depart_time_to: '',
@@ -197,19 +213,47 @@ const form = ref({
 
 const totalSeats = computed(() => (form.value.group_size || 1) + (form.value.extra_seats || 0))
 const perPerson  = computed(() => calcPerPersonPrice(form.value.expected_price, form.value.group_size, form.value.extra_seats))
+const priceTooLow = computed(() => {
+  const p = Number(form.value.expected_price)
+  return recommendPrice.value && p > 0 && p < recommendPrice.value
+})
 
-function filterSug(field) {
-  const kw = (field === 'start' ? form.value.start_loc : form.value.end_loc).toLowerCase()
-  const filtered = kw
-    ? LOCATION_SUGGESTIONS.filter(s => s.toLowerCase().includes(kw))
-    : LOCATION_SUGGESTIONS.slice(0, 6)
-  if (field === 'start') { sugStart.value = filtered; showStart.value = true }
-  else { sugEnd.value = filtered; showEnd.value = true }
+function hideDropdown(field) {
+  setTimeout(() => {
+    if (field === 'start') showStart.value = false
+    else showEnd.value = false
+  }, 150)
 }
 
-function pickSug(field, val) {
-  if (field === 'start') { form.value.start_loc = val; showStart.value = false }
-  else { form.value.end_loc = val; showEnd.value = false }
+async function filterSug(field) {
+  const kw = field === 'start' ? form.value.start_loc : form.value.end_loc
+  if (!kw?.trim()) {
+    if (field === 'start') { sugStart.value = []; showStart.value = false }
+    else { sugEnd.value = []; showEnd.value = false }
+    return
+  }
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(async () => {
+    const results = await searchPlaces(kw)
+    if (field === 'start') { sugStart.value = results; showStart.value = results.length > 0 }
+    else { sugEnd.value = results; showEnd.value = results.length > 0 }
+  }, 300)
+}
+
+async function tryCalcRoute() {
+  if (!startLoc.value?.location || !endLoc.value?.location) return
+  routeLoading.value = true
+  recommendPrice.value = null
+  const result = await calcDrivingRoute(startLoc.value.location, endLoc.value.location)
+  if (result) recommendPrice.value = result.recommend_price
+  routeLoading.value = false
+}
+
+async function pickSug(field, s) {
+  if (field === 'start') { form.value.start_loc = s.name; startLoc.value = s; showStart.value = false }
+  else { form.value.end_loc = s.name; endLoc.value = s; showEnd.value = false }
+  clearTimeout(routeTimer)
+  routeTimer = setTimeout(tryCalcRoute, 100)
 }
 
 function toggleTag(t) {
@@ -300,6 +344,20 @@ async function onSubmit() {
 .sp-price .sp-val { color: #f97316; }
 .sp-key  { font-size: 11px; color: #94a3b8; }
 .field-hint { color: #94a3b8; font-size: 13px; }
+
+/* ── 推荐报价提示 ── */
+.price-hint {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+  margin: 4px 16px 8px; padding: 8px 12px;
+  background: #f0f9ff; border-radius: 8px;
+  font-size: 12px; color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+.price-hint.loading { color: #94a3b8; background: #f8fafc; border-color: #e2e8f0; gap: 8px; }
+.price-hint.warn { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+.price-hint b { font-weight: 700; }
+.hint-icon { font-size: 13px; }
+.warn-text { width: 100%; color: #ef4444; font-size: 11px; }
 
 /* ── 标签 ── */
 .tag-panel {
