@@ -20,7 +20,7 @@ import PassengerFeedback from '../views/passenger/PassengerFeedback.vue'//yzr
 import OwnerHome from '../views/owner/OwnerHome.vue'//hws、zj
 import OwnerCertification from '../views/owner/OwnerCertification.vue'//wyx
 import OwnerVehicles from '../views/owner/OwnerVehicles.vue'//hws、zj
-import OwnerVehicleForm from '../views/owner/OwnerVehicleForm.vue'//hws、zj
+import OwnerVehicleForm from '../views/owner/OwnerVehicleForm.vue'//hws、zj || zj添加，新增车辆界面
 import OwnerOrderAvailable from '../views/owner/OwnerOrderAvailable.vue'//hws、zj
 import OwnerOrderMine from '../views/owner/OwnerOrderMine.vue'//hws、zj
 import OwnerWallet from '../views/owner/OwnerWallet.vue'//yzr
@@ -29,7 +29,7 @@ import OwnerFeedback from '../views/owner/OwnerFeedback.vue'//yzr
 import AdminLogin from '../views/admin/AdminLogin.vue'//wyx
 import AdminUsers from '../views/admin/AdminUsers.vue'//wyx
 import AdminOrders from '../views/admin/AdminOrders.vue'//hws、zj
-import AdminVehicles from '../views/admin/AdminVehicles.vue'//zj
+import AdminVehicles from '../views/admin/AdminVehicles.vue'//zj添加，车主认证管理员审核页面--yzr后续可自行修改
 import AdminFeedback from '../views/admin/AdminFeedback.vue'//yzr
 
 function getSession() {
