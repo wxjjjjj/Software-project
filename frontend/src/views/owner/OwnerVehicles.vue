@@ -1,63 +1,50 @@
 <template>
   <div class="vehicle-page">
-    <section class="page-card">
-      <h2>我的车辆</h2>
-      <p class="hint">维护车辆信息，便于接单时快速选择。</p>
+    <div class="stat-banner">
+      <div class="sb-item">
+        <div class="sb-num">{{ totalCount }}</div>
+        <div class="sb-label">我的车辆</div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-item">
+        <div class="sb-num">{{ verifiedCount }}</div>
+        <div class="sb-label">已认证</div>
+      </div>
+      <div class="sb-divider"></div>
+      <div class="sb-item" @click="goPendingVerify">
+        <div class="sb-num orange">{{ pendingCount }}</div>
+        <div class="sb-label">待认证</div>
+        <div class="sb-pulse" v-if="pendingCount > 0"></div>
+      </div>
+    </div>
 
-      <van-form @submit="onSubmit" class="vehicle-form">
-        <van-field
-          v-model.trim="form.plateNo"
-          name="plateNo"
-          label="车牌号"
-          placeholder="例如：沪A12345"
-          :rules="[{ required: true, message: '请输入车牌号' }]"
-        />
-        <van-field
-          v-model.trim="form.brand"
-          name="brand"
-          label="品牌"
-          placeholder="例如：比亚迪秦"
-          :rules="[{ required: true, message: '请输入品牌' }]"
-        />
-        <van-field
-          v-model.trim="form.color"
-          name="color"
-          label="颜色"
-          placeholder="例如：白色"
-          :rules="[{ required: true, message: '请输入颜色' }]"
-        />
-        <van-field
-          v-model.number="form.seatCapacity"
-          name="seatCapacity"
-          label="座位数"
-          type="digit"
-          placeholder="4"
-          :rules="[{ validator: seatValidator, message: '座位数请输入 2-9' }]"
-        />
-
-        <div class="form-actions">
-          <van-button
-            plain
-            type="default"
-            block
-            v-if="isEditing"
-            @click="cancelEdit"
-          >
-            取消编辑
-          </van-button>
-          <van-button type="primary" native-type="submit" block>
-            {{ isEditing ? '保存修改' : '新增车辆' }}
-          </van-button>
+    <div class="quick-actions">
+      <button type="button" class="qa-card qa-fire" @click="goCreateVehicle">
+        <div class="qa-icon">🚗</div>
+        <div class="qa-info">
+          <div class="qa-title">新增车辆</div>
+          <div class="qa-sub">快速录入车辆信息</div>
         </div>
-      </van-form>
-    </section>
+        <span class="qa-arrow">›</span>
+      </button>
+      <button type="button" class="qa-card qa-notes" @click="goPendingVerify">
+        <div class="qa-icon">🪪</div>
+        <div class="qa-info">
+          <div class="qa-title">车辆认证</div>
+          <div class="qa-sub">{{ pendingCount > 0 ? '还有 ' + pendingCount + ' 辆待认证' : '全部车辆已认证' }}</div>
+        </div>
+        <span class="qa-badge" v-if="pendingCount > 0">{{ pendingCount }}</span>
+        <span class="qa-arrow">›</span>
+      </button>
+    </div>
+
+    <div class="section-label">
+      <span class="section-dot"></span>
+      车辆列表
+      <span class="section-count">共 {{ vehicles.length }} 辆</span>
+    </div>
 
     <section class="page-card list-card">
-      <div class="list-header">
-        <h3>车辆列表</h3>
-        <span class="count">共 {{ vehicles.length }} 辆</span>
-      </div>
-
       <div class="loading-wrap" v-if="loading">
         <van-loading size="24px">加载中...</van-loading>
       </div>
@@ -65,10 +52,22 @@
       <van-empty description="还没有车辆，先新增一辆吧" v-else-if="vehicles.length === 0" />
 
       <div class="vehicle-list" v-else>
-        <article class="vehicle-item" v-for="item in vehicles" :key="item.vehicleId">
+        <article
+          class="vehicle-item"
+          :class="{
+            'v-verified': item.verified,
+            'v-pending': !item.verified,
+            'v-disabled': item.status === 'disabled'
+          }"
+          v-for="item in vehicles"
+          :key="item.vehicleId"
+        >
           <div class="item-main">
-            <div class="plate">{{ item.plateNo }}</div>
-            <div class="meta">{{ item.brand }} · {{ item.color }} · {{ item.seatCapacity }}座</div>
+            <div class="title-row">
+              <div class="plate">{{ item.plateNo }}</div>
+              <span class="seat-badge">{{ item.seatCapacity }}座</span>
+            </div>
+            <div class="meta">{{ item.brand }} · {{ item.color }}</div>
             <div class="tags">
               <van-tag type="success" v-if="item.verified">已认证</van-tag>
               <van-tag type="warning" v-else>待认证</van-tag>
@@ -102,61 +101,46 @@
         </article>
       </div>
     </section>
+
+    <van-action-sheet
+      v-model:show="showVerifySheet"
+      title="选择要认证的车辆"
+      :actions="verifySheetActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onVerifyActionSelect"
+    />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showNotify, showConfirmDialog } from 'vant'
 import {
-  createOwnerVehicle,
   deleteOwnerVehicle,
   fetchOwnerVehicles,
-  updateOwnerVehicle,
   updateOwnerVehicleStatus
 } from '../../api/ride'
 
-// 页面状态：列表、编辑态、加载态、提交态。
+// 页面状态：列表与加载态。
 const vehicles = ref([])
-const editingId = ref(null)
 const loading = ref(false)
-const submitting = ref(false)
+const showVerifySheet = ref(false)
 const router = useRouter()
-
-// 表单模型：新增与编辑共用。
-const form = reactive({
-  plateNo: '',
-  brand: '',
-  color: '',
-  seatCapacity: 4
-})
-
-const isEditing = computed(() => editingId.value !== null)
-const ownerUserId = computed(() => resolveOwnerUserId())
+const totalCount = computed(() => vehicles.value.length)
+const verifiedCount = computed(() => vehicles.value.filter((item) => item.verified).length)
+const pendingCount = computed(() => totalCount.value - verifiedCount.value)
+const pendingVehicles = computed(() => vehicles.value.filter((item) => !item.verified))
+const verifySheetActions = computed(() => pendingVehicles.value.map((item) => ({
+  name: `${item.plateNo} · ${item.brand} · ${item.color}`,
+  vehicleId: item.vehicleId
+})))
 
 // 页面进入时先拉取车辆列表。
 onMounted(() => {
   refreshVehicles()
 })
-
-function readSession() {
-  try {
-    return JSON.parse(localStorage.getItem('session') || '{}')
-  } catch {
-    return {}
-  }
-}
-
-function resolveOwnerUserId() {
-  const session = readSession()
-  const userId = session.userId || session.username
-  if (userId) {
-    return String(userId)
-  }
-  // 开发阶段兜底，避免 session 缺失 userId 时页面不可用。
-  return 'dev-user-1'
-}
 
 function normalizeVerified(value) {
   // 避免把字符串 "0" / "false" 当成真值，导致前端误显示已认证。
@@ -182,7 +166,6 @@ function normalizeVehicle(item) {
   // 兼容后端字段差异，统一成页面使用的数据结构。
   return {
     vehicleId: item.vehicleId ?? item.vehicle_id ?? item.id,
-    ownerUserId: String(item.ownerUserId ?? item.owner_id ?? item.owner_user_id ?? ownerUserId.value),
     plateNo: String(item.plateNo ?? item.plate_no ?? '').toUpperCase(),
     brand: String(item.brand ?? ''),
     color: String(item.color ?? ''),
@@ -210,78 +193,36 @@ async function refreshVehicles() {
   }
 }
 
-function seatValidator(value) {
-  // 与后端保持一致：座位数范围 2~9。
-  const num = Number(value)
-  return Number.isInteger(num) && num >= 2 && num <= 9
-}
-
-async function onSubmit() {
-  if (submitting.value) {
-    return
-  }
-
-  const payload = {
-    plate_no: form.plateNo.toUpperCase(),
-    brand: form.brand,
-    color: form.color,
-    seat_capacity: Number(form.seatCapacity)
-  }
-
-  const duplicate = vehicles.value.some(
-    (item) => item.plateNo === payload.plate_no && item.vehicleId !== editingId.value
-  )
-  if (duplicate) {
-    showNotify({ type: 'warning', message: '车牌号已存在' })
-    return
-  }
-
-  submitting.value = true
-  try {
-    // 编辑模式与新增模式共用提交入口。
-    if (isEditing.value) {
-      await updateOwnerVehicle(editingId.value, payload)
-      showNotify({ type: 'success', message: '车辆信息已更新' })
-    } else {
-      await createOwnerVehicle({
-        owner_id: ownerUserId.value,
-        ...payload
-      })
-      showNotify({ type: 'success', message: '车辆添加成功' })
-    }
-    await refreshVehicles()
-    resetForm()
-  } catch (error) {
-    showNotify({ type: 'danger', message: error.message || '保存失败' })
-  } finally {
-    submitting.value = false
-  }
-}
-
 function startEdit(item) {
-  // 把列表项回填到表单中，进入编辑状态。
-  editingId.value = item.vehicleId
-  form.plateNo = item.plateNo
-  form.brand = item.brand
-  form.color = item.color
-  form.seatCapacity = item.seatCapacity
+  router.push(`/driver/vehicles/${item.vehicleId}/edit`)
 }
 
-function cancelEdit() {
-  resetForm()
+function goCreateVehicle() {
+  router.push('/driver/vehicles/create')
+}
+
+async function goPendingVerify() {
+  if (pendingVehicles.value.length === 0) {
+    showNotify({ type: 'success', message: '当前没有待认证车辆' })
+    return
+  }
+
+  if (pendingVehicles.value.length === 1) {
+    goVerify(pendingVehicles.value[0].vehicleId)
+    return
+  }
+
+  showVerifySheet.value = true
+}
+
+function onVerifyActionSelect(action) {
+  if (action?.vehicleId) {
+    goVerify(action.vehicleId)
+  }
 }
 
 function goVerify(vehicleId) {
   router.push(`/driver/vehicles/${vehicleId}/verify`)
-}
-
-function resetForm() {
-  // 重置表单并退出编辑状态。
-  editingId.value = null
-  form.plateNo = ''
-  form.brand = ''
-  form.color = ''
-  form.seatCapacity = 4
 }
 
 async function toggleStatus(item) {
@@ -306,10 +247,6 @@ async function removeVehicle(id) {
 
     await deleteOwnerVehicle(id)
     await refreshVehicles()
-
-    if (editingId.value === id) {
-      resetForm()
-    }
     showNotify({ type: 'success', message: '已删除车辆' })
   } catch (error) {
     if (error?.message) {
@@ -323,44 +260,170 @@ async function removeVehicle(id) {
 .vehicle-page {
   display: grid;
   gap: 12px;
+  padding-bottom: 24px;
 }
 
-.hint {
-  margin: 6px 0 12px;
-  color: #5f6c80;
+/* 统计横幅 */
+.stat-banner {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #0f3fa8 0%, #165dff 60%, #4f8bff 100%);
+  border-radius: 20px;
+  padding: 20px 0;
+  color: #fff;
+}
+
+.sb-item {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.sb-num {
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.sb-num.orange {
+  color: #fbbf24;
+}
+
+.sb-label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.sb-divider {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  height: 42px;
+  align-self: center;
+}
+
+.sb-pulse {
+  position: absolute;
+  top: 3px;
+  right: calc(50% - 24px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(74, 222, 128, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+  }
+}
+
+/* 快捷入口 */
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qa-card {
+  width: 100%;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  text-decoration: none;
+  position: relative;
+  transition: transform 0.14s;
+  text-align: left;
+}
+
+.qa-card:active {
+  transform: scale(0.97);
+}
+
+.qa-fire {
+  background: #fff7ed;
+}
+
+.qa-notes {
+  background: #f0fdf4;
+}
+
+.qa-icon {
+  font-size: 24px;
+}
+
+.qa-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.qa-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.qa-badge {
+  margin-left: auto;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.qa-arrow {
+  font-size: 20px;
+  color: #cbd5e1;
+  margin-left: auto;
+}
+
+.qa-badge + .qa-arrow {
+  margin-left: 6px;
+}
+
+/* 段落标签 */
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  padding: 8px 2px 0;
 }
 
-.vehicle-form {
-  display: grid;
-  gap: 8px;
+.section-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #165dff;
+  flex-shrink: 0;
 }
 
-.form-actions {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
+.section-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #7b8aa1;
+  font-weight: 500;
 }
 
 .list-card {
-  padding-top: 14px;
-}
-
-.list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.list-header h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.count {
-  font-size: 12px;
-  color: #77849a;
+  padding-top: 12px;
 }
 
 .loading-wrap {
@@ -375,10 +438,11 @@ async function removeVehicle(id) {
 }
 
 .vehicle-item {
-  border: 1px solid #e6edf7;
-  border-radius: 10px;
-  padding: 10px;
-  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+  background: #fff;
+  border-radius: 16px;
+  padding: 13px 16px;
+  box-shadow: 0 2px 12px rgba(22, 93, 255, 0.07);
+  border-left: 3px solid #e2e8f0;
 }
 
 .item-main {
@@ -386,9 +450,40 @@ async function removeVehicle(id) {
   gap: 6px;
 }
 
+.vehicle-item.v-verified {
+  border-left-color: #10b981;
+}
+
+.vehicle-item.v-pending {
+  border-left-color: #f97316;
+}
+
+.vehicle-item.v-disabled {
+  border-left-color: #94a3b8;
+  opacity: 0.86;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .plate {
-  font-weight: 600;
-  color: #1c2f50;
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 15px;
+}
+
+.seat-badge {
+  font-size: 12px;
+  line-height: 1;
+  color: #165dff;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  padding: 4px 8px;
 }
 
 .meta {
@@ -407,6 +502,20 @@ async function removeVehicle(id) {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.item-actions :deep(.van-button) {
+  border-radius: 10px;
+}
+
+@media (max-width: 420px) {
+  .item-actions :deep(.van-button) {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .sb-num {
+    font-size: 28px;
+  }
 }
 </style>
 

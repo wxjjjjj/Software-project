@@ -2,7 +2,7 @@
 
 **负责人**: zj  
 **关联分支**: `zj-ride-dev`  
-**补充日期**: 2026-04-18  
+**补充日期**: 2026-04-25  
 **文档面向**: 全体组员，无需了解本域代码也能读懂
 
 ---
@@ -40,14 +40,22 @@
 
 | 页面 | 访问路径 | 功能 |
 |------|----------|------|
-| 车辆管理 | `/driver/vehicles` | 新增、编辑、删除车辆；启用/停用车辆；查看车辆认证状态 |
+| 车辆主页 | `/driver/vehicles` | 车辆列表管理页；展示统计信息；支持编辑、删除、启停、认证入口 |
+| 新增车辆 | `/driver/vehicles/create` | 独立新增页面，录入车辆信息并提交 |
+| 编辑车辆 | `/driver/vehicles/{vehicleId}/edit` | 独立编辑页面，回填并保存车辆信息 |
+| 车辆认证 | `/driver/vehicles/{vehicleId}/verify` | 提交认证资料；支持返回车辆主页 |
 
 ### 交互说明
 
 1. 车主进入“车辆”页后，先拉取车辆列表。
-2. 可在表单中录入车牌号、品牌、颜色、座位数新增车辆。
-3. 列表中每项支持编辑、启停和删除。
-4. 删除前有确认弹窗，避免误删。
+2. 点击“新增车辆”会跳转到独立页面 `/driver/vehicles/create`，提交后返回车辆主页。
+3. 列表中点击“编辑”会跳转到 `/driver/vehicles/{vehicleId}/edit`，表单自动回填当前车辆信息。
+4. 点击“车辆认证”时：
+  - 无待认证车辆：提示当前没有待认证车辆。
+  - 仅 1 辆待认证：直接进入该车认证页。
+  - 多辆待认证：弹出底部选择栏，先选车辆再进入认证页。
+5. 认证页新增“返回车辆主页”入口，用户可随时返回 `/driver/vehicles`。
+6. 删除前有确认弹窗，避免误删。
 
 ---
 
@@ -229,13 +237,38 @@ Content-Type: application/json
 
 ### 2) 页面能力补充
 
-`OwnerVehicles.vue` 从占位页改为功能页，包含：
+`OwnerVehicles.vue` 进一步收敛为“列表管理主页”，包含：
 
+- 统计横幅（我的车辆 / 已认证 / 待认证）
+- 快捷入口（新增车辆、车辆认证）
 - 列表加载与空态
-- 新增与编辑复用同一表单
+- 编辑跳转到独立编辑页
 - 状态切换（可接单/已停用）
 - 删除确认弹窗
 - 接口异常提示
+- 多待认证车辆时的底部选择栏（ActionSheet）
+
+`OwnerVehicleForm.vue` 新增为独立表单页，包含：
+
+- 新增模式：`/driver/vehicles/create`
+- 编辑模式：`/driver/vehicles/{vehicleId}/edit`
+- 与认证页风格一致（`page-card + hint + 表单`）
+- 提交后回到车辆主页
+
+`OwnerCertification.vue` 补充：
+
+- 新增“返回车辆主页”按钮，便于中断认证流程并返回管理页
+
+`router/index.js` 补充：
+
+- 新增路由：`/driver/vehicles/create`、`/driver/vehicles/{vehicleId}/edit`
+- 新增 owner 语义重定向：`/owner/vehicles/create`、`/owner/vehicles/{vehicleId}/edit`
+
+`AppLayout.vue` 修复：
+
+- 修复“切换身份后需手动刷新才生效”的问题
+- 将 session 改为响应式状态并在路由切换时同步 localStorage
+- 现在身份切换后导航标题、角色标识、底部 Tab 可立即刷新
 
 ### 3) API 封装补充
 
@@ -258,10 +291,13 @@ Content-Type: application/json
 ### 冒烟流程（车辆）
 
 1. 车主进入 `/driver/vehicles`，确认列表可加载。
-2. 新增一辆车，确认列表出现新记录。
-3. 编辑该车辆品牌/颜色，确认更新成功。
-4. 将状态切换为 `disabled`，确认状态标签变化。
-5. 删除该车辆，确认列表移除。
+2. 点击“新增车辆”进入 `/driver/vehicles/create`，提交后确认返回车辆主页且列表出现新记录。
+3. 点击车辆“编辑”进入 `/driver/vehicles/{vehicleId}/edit`，修改品牌/颜色并保存，确认列表更新。
+4. 准备 2 辆待认证车辆后点击“车辆认证”，确认出现底部选择栏，可选择目标车辆进入认证页。
+5. 在认证页点击“返回车辆主页”，确认可直接回到 `/driver/vehicles`。
+6. 将状态切换为 `disabled`，确认状态标签变化。
+7. 删除该车辆，确认列表移除。
+8. 在右上角切换身份（拼车人/车主/管理员），确认页面信息即时变化，无需手动刷新。
 
 ### 模式切换测试
 
@@ -280,8 +316,11 @@ Content-Type: application/json
 
 前端：
 
-- `frontend/src/layouts/AppLayout.vue`：车主 Tab 新增“车辆”入口
-- `frontend/src/views/owner/OwnerVehicles.vue`：车辆管理页面功能化
+- `frontend/src/layouts/AppLayout.vue`：车主 Tab 新增“车辆”入口；修复角色切换后页面需刷新问题
+- `frontend/src/router/index.js`：新增车辆新增/编辑路由及 owner 重定向
+- `frontend/src/views/owner/OwnerVehicles.vue`：车辆主页改为列表管理页；新增认证车辆选择栏
+- `frontend/src/views/owner/OwnerVehicleForm.vue`：新增独立车辆新增/编辑页面
+- `frontend/src/views/owner/OwnerCertification.vue`：新增返回车辆主页入口
 - `frontend/src/api/ride.js`：新增车辆 API 请求封装
 
 文档：
@@ -348,6 +387,7 @@ Content-Type: application/json
 1. 登录后在浏览器检查 `localStorage.session` 是否存在 `userId`。
 2. 切换两个不同账号，确认 `session.userId` 随账号变化。
 3. 进入 `/driver/vehicles`，确认请求 Header `X-User-Id` 与当前账号一致（不再使用 `ownerUserId` 查询参数）。
+4. 在页面右上角切换身份后，确认导航标题、角色标签、底部 Tab 立即变化（无需刷新页面）。
 
 ---
 

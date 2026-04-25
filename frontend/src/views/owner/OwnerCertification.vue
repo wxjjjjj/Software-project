@@ -70,6 +70,10 @@
         <van-button type="primary" native-type="submit" block :loading="submitting">
           提交认证申请
         </van-button>
+
+        <van-button plain type="default" block @click="goBackToVehicles">
+          返回车辆主页
+        </van-button>
       </van-form>
     </section>
   </div>
@@ -135,6 +139,10 @@ async function onSubmit() {
   } finally {
     submitting.value = false
   }
+}
+
+function goBackToVehicles() {
+  router.push('/driver/vehicles')
 }
 </script>
 

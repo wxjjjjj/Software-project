@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -50,9 +50,23 @@ function getSession() {
 
 function setSession(session) {
   localStorage.setItem('session', JSON.stringify(session))
+  sessionState.value = session
 }
 
-const session = computed(() => getSession())
+const sessionState = ref(getSession()) // 维护一个响应式的 session 状态，初始值来自 localStorage
+const session = computed(() => sessionState.value)
+
+function syncSessionFromStorage() {
+  sessionState.value = getSession()
+}
+
+watch(
+  () => router.currentRoute.value.fullPath,
+  () => {
+    syncSessionFromStorage()
+  },
+  { immediate: true }
+)
 
 const roleLabel = computed(() => {
   if (session.value.role === 'admin') return '管理员'
@@ -142,6 +156,7 @@ function switchRole(target) {
 
 function logout() {
   localStorage.removeItem('session')
+  sessionState.value = {}
   router.push('/login')
 }
 </script>

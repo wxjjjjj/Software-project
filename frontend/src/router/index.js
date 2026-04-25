@@ -20,6 +20,7 @@ import PassengerFeedback from '../views/passenger/PassengerFeedback.vue'//yzr
 import OwnerHome from '../views/owner/OwnerHome.vue'//hws、zj
 import OwnerCertification from '../views/owner/OwnerCertification.vue'//wyx
 import OwnerVehicles from '../views/owner/OwnerVehicles.vue'//hws、zj
+import OwnerVehicleForm from '../views/owner/OwnerVehicleForm.vue'//hws、zj
 import OwnerOrderAvailable from '../views/owner/OwnerOrderAvailable.vue'//hws、zj
 import OwnerOrderMine from '../views/owner/OwnerOrderMine.vue'//hws、zj
 import OwnerWallet from '../views/owner/OwnerWallet.vue'//yzr
@@ -85,6 +86,8 @@ const routes = [
       { path: 'driver/home', component: OwnerHome, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/certification', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/vehicles/:vehicleId/verify', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
+      { path: 'driver/vehicles/create', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'driver' } },
+      { path: 'driver/vehicles/:vehicleId/edit', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/available', component: OwnerOrderAvailable, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/mine', component: OwnerOrderMine, meta: { requiresAuth: true, role: 'driver' } },
@@ -100,6 +103,8 @@ const routes = [
       { path: 'owner/home', redirect: '/driver/home' },
       { path: 'owner/certification', redirect: '/driver/certification' },
       { path: 'owner/vehicles/:vehicleId/verify', redirect: '/driver/vehicles/:vehicleId/verify' },
+      { path: 'owner/vehicles/create', redirect: '/driver/vehicles/create' },
+      { path: 'owner/vehicles/:vehicleId/edit', redirect: '/driver/vehicles/:vehicleId/edit' },
       { path: 'owner/vehicles', redirect: '/driver/vehicles' },
       { path: 'owner/orders/available', redirect: '/driver/orders/available' },
       { path: 'owner/orders/mine', redirect: '/driver/orders/mine' },
