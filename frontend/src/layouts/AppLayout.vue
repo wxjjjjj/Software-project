@@ -57,7 +57,8 @@ const session = ref(getSession())
 
 const roleLabel = computed(() => {
   if (session.value.role === 'admin') return '管理员'
-  if (session.value.ownerVerified) return '车主(已认证)'
+  if (session.value.role === 'driver') return '车主模式'
+  if (session.value.ownerVerified) return '拼车人(可切车主)'
   return '拼车人'
 })
 
@@ -66,16 +67,19 @@ const tabItems = computed(() => {
     return [
       { path: '/admin/users', label: '用户', icon: 'manager-o' },
       { path: '/admin/orders', label: '订单', icon: 'todo-list-o' },
-      { path: '/admin/feedback', label: '反馈', icon: 'chat-o' }
+      { path: '/admin/vehicle-verifications', label: '车辆审核', icon: 'logistics' },
+      { path: '/admin/feedback', label: '反馈', icon: 'chat-o' },
+      { path: '/me/profile', label: '我的', icon: 'user-o' }
     ]
   }
 
-  if (session.value.ownerVerified && router.currentRoute.value.path.startsWith('/driver')) {
+  if (session.value.role === 'driver' && session.value.ownerVerified) {
     return [
       { path: '/driver/home', label: '首页', icon: 'home-o' },
       { path: '/driver/orders/available', label: '接单', icon: 'fire-o' },
-      { path: '/driver/orders/mine', label: '我的', icon: 'notes-o' },
-      { path: '/driver/wallet', label: '钱包', icon: 'balance-o' }
+      { path: '/driver/orders/mine', label: '行程', icon: 'notes-o' },
+      { path: '/me/vehicles', label: '车辆', icon: 'logistics' },
+      { path: '/me/profile', label: '我的', icon: 'user-o' }
     ]
   }
 
@@ -83,7 +87,8 @@ const tabItems = computed(() => {
     { path: '/passenger/home', label: '首页', icon: 'home-o' },
     { path: '/passenger/orders/publish', label: '发布', icon: 'plus' },
     { path: '/passenger/orders/search', label: '搜索', icon: 'search' },
-    { path: '/passenger/orders/mine', label: '我的', icon: 'notes-o' }
+    { path: '/passenger/orders/mine', label: '订单', icon: 'notes-o' },
+    { path: '/me/profile', label: '我的', icon: 'user-o' }
   ]
 })
 
@@ -91,19 +96,31 @@ const navTitle = computed(() => {
   const path = router.currentRoute.value.path
   if (path.startsWith('/admin')) return '管理员工作台'
   if (path.startsWith('/driver')) return '车主拼车'
+  if (path.startsWith('/me')) return '我的'
+  if (path.startsWith('/users')) return '用户资料'
   return '拼车出行'
 })
 
-const actionItems = [
-  { text: '切换拼车人', key: 'passenger' },
-  { text: '切换车主', key: 'driver' },
-  { text: '切换管理员', key: 'admin' },
-  { text: '退出登录', key: 'logout' }
-]
+const actionItems = computed(() => {
+  const items = [
+    { text: '拼车人模式', key: 'passenger' },
+    { text: session.value.ownerVerified ? '车主模式' : '申请成为车主', key: 'driver' },
+    { text: '个人中心', key: 'me' }
+  ]
+  if (session.value.role === 'admin') {
+    items.unshift({ text: '管理员工作台', key: 'admin' })
+  }
+  items.push({ text: '退出登录', key: 'logout' })
+  return items
+})
 
 function onActionSelect(action) {
   if (action.key === 'logout') {
     logout()
+    return
+  }
+  if (action.key === 'me') {
+    router.push('/me/profile')
     return
   }
   switchRole(action.key)
@@ -123,16 +140,19 @@ function switchRole(target) {
   }
 
   if (target === 'driver') {
-    current.role = 'user'
-    current.ownerVerified = true
+    if (!current.ownerVerified) {
+      setSession(current)
+      router.push('/me/driver-application')
+      return
+    }
+    current.role = 'driver'
     current.token = current.token || 'dev-token'
     setSession(current)
     router.push('/driver/home')
     return
   }
 
-  current.role = 'user'
-  current.ownerVerified = false
+  current.role = 'passenger'
   current.token = current.token || 'dev-token'
   setSession(current)
   router.push('/passenger/home')

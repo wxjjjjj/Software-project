@@ -39,9 +39,10 @@
             <span class="veh-id">{{ o.vehicle_id }}</span>
           </div>
           <!-- 锁单操作 -->
-          <div class="card-action" v-if="o.status === 'locked'">
-            <button class="btn-complete" @click="handleComplete(o)">✓ 标记完成</button>
-            <button class="btn-cancel"   @click="handleCancel(o)">取消接单</button>
+          <div class="card-action">
+            <button class="btn-detail" @click="goDetail(o)">详情</button>
+            <button v-if="o.status === 'locked'" class="btn-complete" @click="handleComplete(o)">✓ 标记完成</button>
+            <button v-if="o.status === 'locked'" class="btn-cancel"   @click="handleCancel(o)">取消接单</button>
           </div>
         </div>
       </template>
@@ -51,9 +52,11 @@
 
 <script setup>
 import { onMounted, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { showConfirmDialog, showToast, showSuccessToast } from 'vant'
 import { rideApi, STATUS_MAP, formatTime } from '@/api/ride.js'
 
+const router = useRouter()
 const orders    = ref([])
 const loading   = ref(true)
 const activeTab = ref('')
@@ -67,6 +70,10 @@ const filtered = computed(() =>
 )
 
 onMounted(() => loadOrders())
+
+function goDetail(o) {
+  router.push(`/driver/orders/${o.order_id}`)
+}
 
 async function loadOrders() {
   loading.value = true
@@ -165,12 +172,16 @@ async function handleCancel(o) {
   margin-top: 10px; padding-top: 10px;
   border-top: 1px solid #f1f5f9;
 }
-.btn-complete, .btn-cancel {
+.btn-detail, .btn-complete, .btn-cancel {
   padding: 6px 14px; border-radius: 20px; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: opacity .15s, transform .15s;
 }
-.btn-complete:active, .btn-cancel:active { transform: scale(.95); }
+.btn-detail:active, .btn-complete:active, .btn-cancel:active { transform: scale(.95); }
+.btn-detail {
+  background: #fff; color: #165DFF;
+  border: 1.5px solid #c7d7ff;
+}
 .btn-complete {
   background: #10b981; color: #fff;
   box-shadow: 0 3px 10px rgba(16,185,129,.3);

@@ -79,6 +79,34 @@
       </div>
 
       <!-- 操作区 -->
+      <div class="passenger-card">
+        <div class="pc-header">
+          <span>参与乘客</span>
+          <span class="pc-count">{{ passengers.length }} 人</span>
+        </div>
+        <div v-if="passengers.length" class="passenger-list">
+          <RouterLink
+            v-for="p in passengers"
+            :key="p.record_id || p.passenger_id"
+            class="passenger-row"
+            :to="`/users/${p.passenger_id}`"
+          >
+            <div class="avatar">{{ avatarText(p.passenger_id) }}</div>
+            <div class="passenger-main">
+              <div class="passenger-name">
+                {{ p.passenger_id }}
+                <van-tag v-if="p.passenger_id === order.passenger_id" type="primary" plain>发起人</van-tag>
+                <van-tag v-if="p.passenger_id === userId" type="success" plain>我</van-tag>
+              </div>
+              <div class="passenger-meta">
+                {{ fmtTime(p.join_time) }} 加入 · {{ payStatusLabel(p.pay_status) }}
+              </div>
+            </div>
+          </RouterLink>
+        </div>
+        <van-empty v-else image-size="56" description="暂无参与乘客" />
+      </div>
+
       <div class="action-area" v-if="order.status !== 'cancelled' && order.status !== 'completed'">
         <van-button
           v-if="canJoin"
@@ -131,16 +159,33 @@ const statusLabel = (s) => STATUS_MAP[s]?.label || s
 const statusType  = (s) => STATUS_MAP[s]?.type  || 'default'
 const fmtTime     = (s) => formatTime(s)
 
+const isDriverView = computed(() => route.path.startsWith('/driver/'))
 const isPublisher = computed(() => order.value?.passenger_id === userId)
-const hasJoined   = computed(() => isPublisher.value)
+const passengers = computed(() => order.value?.passengers || [])
+const hasJoined   = computed(() =>
+  isPublisher.value || passengers.value.some((p) => p.passenger_id === userId)
+)
 const canJoin     = computed(() =>
+  !isDriverView.value &&
   order.value?.status === 'published' &&
   (order.value?.remaining_seats || 0) > 0 &&
-  !isPublisher.value
+  !hasJoined.value
 )
 const canCancel = computed(() =>
-  isPublisher.value || order.value?.owner_id === userId
+  !isDriverView.value && (isPublisher.value || order.value?.owner_id === userId)
 )
+
+function avatarText(id) {
+  return String(id || '?').slice(0, 1).toUpperCase()
+}
+
+function payStatusLabel(status) {
+  return ({
+    pending: '待支付',
+    paid: '已支付',
+    refunded: '已退款',
+  })[status] || status || '未知'
+}
 
 onMounted(async () => {
   try {
@@ -277,4 +322,70 @@ async function handleCancel() {
 .cancel-btn { margin-top: 10px; }
 .ended-wrap { padding-top: 20px; }
 .page-loading { display: flex; justify-content: center; padding: 60px 0; }
+
+.passenger-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 10px rgba(22,93,255,.05);
+}
+.pc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.pc-count {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+}
+.passenger-list {
+  display: grid;
+  gap: 8px;
+}
+.passenger-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 8px;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: #e7efff;
+  color: #165DFF;
+  font-size: 14px;
+  font-weight: 800;
+}
+.passenger-main {
+  min-width: 0;
+  flex: 1;
+}
+.passenger-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.passenger-meta {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+}
 </style>

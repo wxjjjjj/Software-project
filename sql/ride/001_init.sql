@@ -23,6 +23,25 @@ CREATE TABLE IF NOT EXISTS vehicle (
   INDEX idx_vehicle_owner (owner_user_id)
 ) COMMENT '车辆信息';
 
+CREATE TABLE IF NOT EXISTS vehicle_verify_request (
+  id                 BIGINT       PRIMARY KEY AUTO_INCREMENT,
+  vehicle_id         BIGINT       NOT NULL,
+  owner_user_id      VARCHAR(64)  NOT NULL,
+  owner_name         VARCHAR(64)  NOT NULL,
+  id_no              VARCHAR(32)  NOT NULL,
+  driver_license_no  VARCHAR(64)  NOT NULL,
+  vehicle_license_no VARCHAR(64)  NOT NULL,
+  contact_phone      VARCHAR(32),
+  remark             VARCHAR(255),
+  status             ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  review_note        VARCHAR(255),
+  reviewed_by        VARCHAR(64),
+  reviewed_at        DATETIME,
+  created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_vehicle_verify_status (status),
+  INDEX idx_vehicle_verify_vehicle (vehicle_id)
+) COMMENT '车辆认证申请';
+
 -- ─────────────────────────────────────────────
 -- 订单主表（hws 负责）
 -- ─────────────────────────────────────────────

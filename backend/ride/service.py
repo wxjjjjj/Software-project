@@ -4,7 +4,7 @@
 """
 from typing import Optional
 
-from fastapi import FastAPI, Header, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.ride.ride_domain import (
@@ -12,16 +12,30 @@ from backend.ride.ride_domain import (
     CompleteOrderRequest,
     OrderPublishRequest,
     OrderUpdateRequest,
+    VehicleCreateRequest,
+    VehicleStatusUpdateRequest,
+    VehicleUpdateRequest,
+    VehicleVerifyReviewRequest,
+    VehicleVerifySubmitRequest,
+    VehicleVerifyUpdateRequest,
     accept_order,
     cancel_order,
     complete_order,
+    create_vehicle,
+    delete_vehicle,
     get_order_detail,
     join_order,
+    list_vehicle_verify_requests,
     list_orders,
     list_vehicles,
     publish_order,
+    review_vehicle_verify_request,
     search_orders,
+    submit_vehicle_verify_request,
     update_order,
+    update_vehicle,
+    update_vehicle_status,
+    update_vehicle_verified,
 )
 
 app = FastAPI(title="Ride Service", version="1.0.0")
@@ -138,3 +152,76 @@ def api_list_vehicles(
 ):
     """查询当前车主名下所有可用车辆"""
     return list_vehicles(x_user_id)
+
+
+@app.post("/api/vehicles")
+def api_create_vehicle(
+    payload: VehicleCreateRequest,
+    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+):
+    """新增当前车主车辆"""
+    return create_vehicle(payload, x_user_id)
+
+
+@app.get("/api/vehicles/verify-requests")
+def api_list_vehicle_verify_requests(
+    status: Optional[str] = Query(default="pending"),
+    x_user_role: str = Header(default="user", alias="X-User-Role"),
+):
+    """管理员查看车辆认证申请"""
+    if x_user_role != "admin":
+        raise HTTPException(status_code=403, detail="admin role required")
+    return list_vehicle_verify_requests(status)
+
+
+@app.patch("/api/vehicles/verify-requests/{request_id}/review")
+def api_review_vehicle_verify_request(
+    request_id: str,
+    payload: VehicleVerifyReviewRequest,
+    x_user_id: str = Header(default="admin", alias="X-User-Id"),
+    x_user_role: str = Header(default="user", alias="X-User-Role"),
+):
+    """管理员审核车辆认证申请"""
+    if x_user_role != "admin":
+        raise HTTPException(status_code=403, detail="admin role required")
+    return review_vehicle_verify_request(request_id, payload, x_user_id)
+
+
+@app.put("/api/vehicles/{vehicle_id}")
+def api_update_vehicle(vehicle_id: str, payload: VehicleUpdateRequest):
+    """编辑车辆基础信息"""
+    return update_vehicle(vehicle_id, payload)
+
+
+@app.patch("/api/vehicles/{vehicle_id}/status")
+def api_update_vehicle_status(vehicle_id: str, payload: VehicleStatusUpdateRequest):
+    """切换车辆状态"""
+    return update_vehicle_status(vehicle_id, payload)
+
+
+@app.patch("/api/vehicles/{vehicle_id}/verified")
+def api_update_vehicle_verified(
+    vehicle_id: str,
+    payload: VehicleVerifyUpdateRequest,
+    x_user_role: str = Header(default="user", alias="X-User-Role"),
+):
+    """管理员直接修改车辆认证状态"""
+    if x_user_role != "admin":
+        raise HTTPException(status_code=403, detail="admin role required")
+    return update_vehicle_verified(vehicle_id, payload)
+
+
+@app.post("/api/vehicles/{vehicle_id}/verify-request")
+def api_submit_vehicle_verify_request(
+    vehicle_id: str,
+    payload: VehicleVerifySubmitRequest,
+    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+):
+    """车主提交车辆认证资料"""
+    return submit_vehicle_verify_request(vehicle_id, payload, x_user_id)
+
+
+@app.delete("/api/vehicles/{vehicle_id}")
+def api_delete_vehicle(vehicle_id: str):
+    """删除车辆"""
+    return delete_vehicle(vehicle_id)

@@ -15,6 +15,14 @@ function getUserId() {
   }
 }
 
+function buildErrorMessage(payload, fallback) {
+  if (!payload) return fallback
+  if (typeof payload === 'string') return payload
+  if (payload.detail) return String(payload.detail)
+  if (payload.message) return String(payload.message)
+  return fallback
+}
+
 function buildHeaders() {
   const s = JSON.parse(localStorage.getItem('session') || '{}')
   const headers = {
@@ -30,7 +38,7 @@ async function req(method, path, body = null) {
   if (body !== null) opts.body = JSON.stringify(body)
   const res = await fetch(`/api${path}`, opts)
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`)
+  if (!res.ok) throw new Error(buildErrorMessage(data, `HTTP ${res.status}`))
   return data
 }
 
@@ -103,6 +111,48 @@ export const rideApi = {
   listMyVehicles() {
     return req('GET', '/vehicles')
   },
+}
+
+// ── 车辆接口 ──────────────────────────────────────────────────────────────────
+
+export function fetchOwnerVehicles() {
+  return req('GET', '/vehicles')
+}
+
+export function createOwnerVehicle(payload) {
+  return req('POST', '/vehicles', payload)
+}
+
+export function updateOwnerVehicle(vehicleId, payload) {
+  return req('PUT', `/vehicles/${vehicleId}`, payload)
+}
+
+export function updateOwnerVehicleStatus(vehicleId, status) {
+  return req('PATCH', `/vehicles/${vehicleId}/status`, { status })
+}
+
+export function deleteOwnerVehicle(vehicleId) {
+  return req('DELETE', `/vehicles/${vehicleId}`)
+}
+
+export function updateAdminVehicleVerified(vehicleId, verified) {
+  return req('PATCH', `/vehicles/${vehicleId}/verified`, { verified })
+}
+
+export function submitVehicleVerifyRequest(vehicleId, payload) {
+  return req('POST', `/vehicles/${vehicleId}/verify-request`, payload)
+}
+
+export function fetchVehicleVerifyRequests(status = 'pending') {
+  const query = status ? `?status=${encodeURIComponent(status)}` : ''
+  return req('GET', `/vehicles/verify-requests${query}`)
+}
+
+export function reviewVehicleVerifyRequest(requestId, decision, review_note = '') {
+  return req('PATCH', `/vehicles/verify-requests/${requestId}/review`, {
+    decision,
+    review_note,
+  })
 }
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────────

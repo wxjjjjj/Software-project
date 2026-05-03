@@ -50,6 +50,39 @@ a { color: inherit; text-decoration: none; }
 
 #app { min-height: 100vh; }
 
+.van-toast.phone-toast,
+.van-notify.phone-notify,
+.van-dialog,
+.van-popup {
+  max-width: min(420px, calc(100vw - 24px));
+}
+
+.van-toast.phone-toast {
+  left: 50%;
+  transform: translate3d(-50%, -50%, 0);
+}
+
+.van-notify.phone-notify {
+  left: 50%;
+  width: min(420px, 100vw);
+  transform: translateX(-50%);
+}
+
+@media (min-width: 760px) {
+  .van-toast.phone-toast {
+    left: calc(50vw);
+  }
+
+  .van-notify.phone-notify {
+    left: 50%;
+    width: 420px;
+  }
+}
+
+.van-dialog {
+  width: min(380px, calc(100vw - 32px));
+}
+
 /* ── 通用卡片 ─────────────────────────────────────────────────────────── */
 .page-card {
   background: #fff;

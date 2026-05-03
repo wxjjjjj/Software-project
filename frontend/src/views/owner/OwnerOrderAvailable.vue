@@ -44,6 +44,7 @@
           <span v-for="t in o.tags" :key="t" class="mini-tag">{{ t }}</span>
         </div>
         <div class="card-action">
+          <button class="btn-detail" @click="goDetail(o)">详情</button>
           <button class="btn-accept" @click="openAccept(o)">接单 →</button>
         </div>
       </div>
@@ -113,9 +114,11 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast, showSuccessToast } from 'vant'
 import { rideApi, formatTime } from '@/api/ride.js'
 
+const router = useRouter()
 const orders            = ref([])
 const loading           = ref(true)
 const showPopup         = ref(false)
@@ -128,6 +131,10 @@ const accepting         = ref(false)
 const fmtTime = (s) => formatTime(s)
 
 onMounted(() => loadOrders())
+
+function goDetail(o) {
+  router.push(`/driver/orders/${o.order_id}`)
+}
 
 async function loadOrders() {
   loading.value = true
@@ -149,7 +156,7 @@ async function openAccept(o) {
   vehicleLoading.value = true
   try {
     const res = await rideApi.listMyVehicles()
-    vehicles.value = res.vehicles || []
+    vehicles.value = (res.items || []).filter(v => v.status === 'available' && v.verified)
     if (vehicles.value.length === 1) {
       selectedVehicleId.value = vehicles.value[0].vehicle_id
     }
@@ -236,7 +243,13 @@ async function confirmAccept() {
   background: #f0f5ff; color: #165DFF; border: 1px solid #dce8ff;
 }
 
-.card-action { display: flex; justify-content: flex-end; }
+.card-action { display: flex; justify-content: flex-end; gap: 8px; }
+.btn-detail {
+  padding: 7px 16px; border-radius: 20px; border: 1px solid #c7d7ff;
+  background: #fff; color: #165DFF; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+}
+.btn-detail:active { transform: scale(.96); background: #f0f5ff; }
 .btn-accept {
   padding: 7px 20px; border-radius: 20px; border: none;
   background: #165DFF; color: #fff; font-size: 13px; font-weight: 600;
