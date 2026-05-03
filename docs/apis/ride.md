@@ -3,7 +3,7 @@
 **负责人**: hws、zj  
 **数据库**: ride_db  
 **服务端口**: 8002（本地开发），通过网关 8000 统一暴露  
-**功能范围**: 订单发布/搜索/详情/状态流转、车主接单、车辆查询
+**功能范围**: 订单发布/搜索/详情/状态流转、车主接单、车辆管理、车辆认证审核
 
 ---
 
@@ -135,7 +135,7 @@
 - **路径**: `/api/orders/{order_id}`  
 - **权限**: 登录用户
 
-**响应**: 同搜索列表中单条结构，额外包含 `locked_time`。
+**响应**: 同搜索列表中单条结构，额外包含 `locked_time` 和 `passengers`。
 
 **错误码**: `404`（订单不存在）
 
@@ -256,6 +256,8 @@
 
 ## 车辆接口
 
+> 2026-05-04 整合后，车辆列表接口按 zj 契约返回 `{ "items": [...] }`，不再返回旧的 `{ "vehicles": [...] }`。
+
 ### 10. 查询车主名下车辆
 
 - **方法**: GET  
@@ -265,19 +267,57 @@
 **响应 JSON**:
 ```json
 {
-  "vehicles": [
+  "items": [
     {
-      "vehicle_id": "veh-mock-002",
-      "owner_id": "dev-user-1",
+      "vehicle_id": "1",
+      "owner_id": "123",
       "plate_no": "粤B·12345",
       "brand": "本田 雅阁",
       "color": "深空黑",
       "seat_capacity": 5,
+      "verified": true,
       "status": "available"
     }
   ]
 }
 ```
+
+### 11. 新增车辆
+
+- **方法**: POST
+- **路径**: `/api/vehicles`
+
+### 12. 编辑车辆
+
+- **方法**: PUT
+- **路径**: `/api/vehicles/{vehicle_id}`
+
+### 13. 启用或停用车辆
+
+- **方法**: PATCH
+- **路径**: `/api/vehicles/{vehicle_id}/status`
+
+### 14. 删除车辆
+
+- **方法**: DELETE
+- **路径**: `/api/vehicles/{vehicle_id}`
+
+### 15. 提交车辆认证申请
+
+- **方法**: POST
+- **路径**: `/api/vehicles/{vehicle_id}/verify-request`
+
+### 16. 管理员查看车辆认证申请
+
+- **方法**: GET
+- **路径**: `/api/vehicles/verify-requests`
+- **权限**: 管理员（`X-User-Role: admin`）
+
+### 17. 管理员审核车辆认证申请
+
+- **方法**: PATCH
+- **路径**: `/api/vehicles/verify-requests/{request_id}/review`
+- **权限**: 管理员（`X-User-Role: admin`）
 
 ---
 
