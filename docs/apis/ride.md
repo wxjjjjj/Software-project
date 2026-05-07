@@ -15,6 +15,9 @@
 |--------|------|------|
 | `X-User-Id` | 当前用户 ID | `dev-user-1` |
 | `X-User-Role` | 用户角色（管理员操作时传入） | `admin` |
+| `X-Owner-Verified` | 当前用户是否已完成车主身份认证，车辆管理和车主接单接口需要 | `true` |
+
+> 车辆管理、车辆认证申请、车主接单等车主侧接口会同时校验 `X-Owner-Verified: true`。未完成车主身份认证的用户不能登记车辆，也不能接单。
 
 ---
 
@@ -205,7 +208,7 @@
 
 - **方法**: POST  
 - **路径**: `/api/orders/{order_id}/accept`  
-- **权限**: 车主（`X-User-Id` 为车主 ID）
+- **权限**: 已完成车主身份认证的车主（`X-User-Id` 为车主 ID，`X-Owner-Verified: true`）
 
 **请求 JSON**:
 ```json
@@ -225,7 +228,14 @@
 }
 ```
 
-**错误码**: `409`（已被接单 / 状态不允许）
+**校验规则**:
+
+- 订单必须处于 `published` 或 `full` 状态。
+- `vehicle_id` 必须属于当前车主本人。
+- 车辆必须已认证，即 `verified=true`。
+- 车辆必须处于 `available` 状态，禁用车辆不能接单。
+
+**错误码**: `403`（未完成车主身份认证 / 非本人车辆 / 无可用已认证车辆），`409`（已被接单 / 状态不允许）
 
 ---
 
@@ -262,7 +272,7 @@
 
 - **方法**: GET  
 - **路径**: `/api/vehicles`  
-- **权限**: 车主（通过 `X-User-Id` 识别）
+- **权限**: 已完成车主身份认证的车主（通过 `X-User-Id` 识别，并要求 `X-Owner-Verified: true`）
 
 **响应 JSON**:
 ```json
@@ -271,41 +281,95 @@
     {
       "vehicle_id": "1",
       "owner_id": "123",
-      "plate_no": "粤B·12345",
+      "plate_no": "粤B12345",
       "brand": "本田 雅阁",
       "color": "深空黑",
       "seat_capacity": 5,
       "verified": true,
+      "verify_status": "approved",
       "status": "available"
     }
   ]
 }
 ```
 
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `verified` | boolean | 车辆是否已通过管理员认证 |
+| `verify_status` | enum | 认证流程状态：`unsubmitted` 未提交、`pending` 审核中、`approved` 已通过 |
+| `status` | enum | 车辆启停状态：`available` 可用、`disabled` 禁用 |
+
 ### 11. 新增车辆
 
 - **方法**: POST
 - **路径**: `/api/vehicles`
+- **权限**: 已完成车主身份认证的车主
+
+**请求 JSON**:
+```json
+{
+  "plate_no": "粤B12345",
+  "brand": "本田 雅阁",
+  "color": "深空黑",
+  "seat_capacity": 5
+}
+```
+
+**校验规则**:
+
+- 车牌号会统一转为大写。
+- 车牌号必须符合大陆普通车牌或新能源车牌格式。
+- 同一车牌号不能重复登记。
+- 座位数必须在 2 到 9 之间。
 
 ### 12. 编辑车辆
 
 - **方法**: PUT
 - **路径**: `/api/vehicles/{vehicle_id}`
+- **权限**: 已完成车主身份认证的车主，且只能编辑本人车辆
 
 ### 13. 启用或停用车辆
 
 - **方法**: PATCH
 - **路径**: `/api/vehicles/{vehicle_id}/status`
+- **权限**: 已完成车主身份认证的车主，且只能操作本人车辆
+
+**请求 JSON**:
+```json
+{ "status": "available" }
+```
+
+> `status` 只能是 `available` 或 `disabled`。
 
 ### 14. 删除车辆
 
 - **方法**: DELETE
 - **路径**: `/api/vehicles/{vehicle_id}`
+- **权限**: 已完成车主身份认证的车主，且只能删除本人车辆
 
 ### 15. 提交车辆认证申请
 
 - **方法**: POST
 - **路径**: `/api/vehicles/{vehicle_id}/verify-request`
+- **权限**: 已完成车主身份认证的车主，且只能为本人车辆提交
+
+**请求 JSON**:
+```json
+{
+  "owner_name": "张三",
+  "id_no": "310101199001011234",
+  "driver_license_no": "DL-001",
+  "vehicle_license_no": "VL-001",
+  "contact_phone": "13800000000",
+  "remark": "补充说明"
+}
+```
+
+**校验规则**:
+
+- 已认证车辆不能重复提交认证。
+- 已存在 `pending` 审核申请的车辆不能再次提交，前端会显示“该车辆认证正在审核”。
+
 
 ### 16. 管理员查看车辆认证申请
 
@@ -318,6 +382,16 @@
 - **方法**: PATCH
 - **路径**: `/api/vehicles/verify-requests/{request_id}/review`
 - **权限**: 管理员（`X-User-Role: admin`）
+
+**请求 JSON**:
+```json
+{
+  "decision": "approved",
+  "review_note": "资料完整"
+}
+```
+
+> `decision` 只能是 `approved` 或 `rejected`。通过后车辆 `verified` 会变为 `true`，车辆列表中的 `verify_status` 会显示为 `approved`。
 
 ---
 
@@ -354,5 +428,7 @@ orders(id, passenger_id, start_loc, end_loc,
 order_tags(order_id, tag)
 order_passenger(id, order_id, passenger_id, joined_at)
 
-vehicles(id, owner_id, plate_no, brand, color, seat_capacity, status)
+vehicle(id, owner_user_id, plate_no, brand, color, seat_capacity, verified, status)
+vehicle_verify_request(id, vehicle_id, owner_user_id, owner_name, id_no,
+                       driver_license_no, vehicle_license_no, status, review_note)
 ```
