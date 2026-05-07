@@ -3,7 +3,7 @@
 ## 修改范围
 
 - 后端：`backend/ride/service.py`、`backend/ride/ride_domain.py`
-- 前端：`frontend/src/api/ride.js`、`frontend/src/router/index.js`、`frontend/src/views/owner/OwnerVehicleForm.vue`、`frontend/src/views/owner/OwnerOrderAvailable.vue`
+- 前端：`frontend/src/api/ride.js`、`frontend/src/router/index.js`、`frontend/src/views/owner/OwnerVehicleForm.vue`、`frontend/src/views/owner/OwnerOrderAvailable.vue`、`frontend/src/views/owner/OwnerVehicles.vue`、`frontend/src/views/owner/OwnerVehicleVerify.vue`、`frontend/src/views/me/MeProfile.vue`、`frontend/src/views/me/MeDriverApplication.vue`
 
 ## 功能说明
 
@@ -31,6 +31,31 @@
 - 后端接单仍以服务端校验为准：必须是当前用户本人车辆、车辆已认证、车辆状态为 `available`。
 - 即使用户车主身份已认证，也不能使用未认证、禁用或非本人车辆接单。
 - 前端接单弹窗会先过滤车辆，并修正字符串 `"0"` / `"false"` 被误判为已认证的问题。
+
+### 5. 车主认证入口优化
+
+- 已具备车主资格的用户，在个人中心不再显示“车主身份认证”入口，避免重复进入认证流程。
+- 车主身份认证页删除“去登记车辆”按钮，因为车辆登记已要求先完成车主身份认证。
+- 个人中心顶部资格卡片做了视觉优化：已认证状态使用独立胶囊徽章，卡片增加柔和背景、状态强调线和更好的留白。
+
+### 6. 车辆认证审核中状态
+
+- 后端车辆列表新增 `verify_status` 字段，用于区分 `approved`、`pending`、`unsubmitted`。
+- 车辆列表中，已提交但未审核的车辆显示“审核中”，不再只显示“待认证”。
+- 审核中的车辆在车辆列表里禁用“去认证”按钮，并显示为“审核中”。
+- 车辆认证选择弹窗中，审核中的车辆显示“该车辆认证正在审核”，并禁止再次选择提交。
+- 车辆认证提交页会识别审核中状态，显示提示条“该车辆认证正在审核，无法提交新的认证”，并禁用提交按钮。
+
+### 7. 车辆列表状态展示修复
+
+- 车辆列表的“可接单”展示改为同时判断车辆认证状态和车辆启停状态。
+- 只有 `verified=true` 且 `status=available` 的车辆显示“可接单”。
+- 未认证车辆显示“待认证不可接单”，禁用车辆显示“已停用”。
+
+### 8. 车型联想补充
+
+- 车辆型号联想列表进一步扩充，覆盖更多国产新能源、新势力、主流合资、豪华品牌和常见 MPV/SUV 车型。
+- 扩充仅影响前端候选体验，不改变后端车型字段的存储结构。
 
 ## 兼容说明
 
