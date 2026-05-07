@@ -42,3 +42,39 @@ CREATE TABLE IF NOT EXISTS admin_account (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- 已完成车主身份认证的测试账号：用户名 dev-owner，密码 123456
+INSERT INTO user_account
+  (username, password_hash, phone, real_name, role_type, owner_verified, status)
+VALUES
+  (
+    'dev-owner',
+    '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+    '13800000001',
+    '测试车主',
+    'owner',
+    1,
+    'active'
+  )
+ON DUPLICATE KEY UPDATE
+  password_hash = VALUES(password_hash),
+  role_type = 'owner',
+  owner_verified = 1,
+  status = 'active';
+
+INSERT INTO owner_verification
+  (user_id, id_card_no, driver_license_no, vehicle_license_no, verify_status, submitted_at, reviewed_at)
+SELECT
+  u.id,
+  '310101199001011234',
+  'DL-DEV-OWNER-001',
+  'VL-DEV-OWNER-001',
+  'approved',
+  NOW(),
+  NOW()
+FROM user_account u
+WHERE u.username = 'dev-owner'
+  AND NOT EXISTS (
+    SELECT 1 FROM owner_verification ov
+    WHERE ov.user_id = u.id AND ov.verify_status = 'approved'
+  );

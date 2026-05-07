@@ -1,7 +1,7 @@
 <template>
   <div class="page-card">
     <h2>用户登录</h2>
-    <p>默认登录为拼车人账号（开发态模拟）。</p>
+    <p>默认登录为拼车人账号；测试车主账号为 dev-owner / 123456。</p>
     <div class="form-row">
       <input v-model="username" placeholder="用户名" />
       <input v-model="password" type="password" placeholder="密码" />
@@ -31,25 +31,33 @@ async function login() {
     return
   }
 
+  let loginData = null
   try {
-    await fetch('/api/auth/login', {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: username.value, password: password.value })
     })
+    if (res.ok) {
+      loginData = await res.json()
+    }
   } catch {
     // 开发态即使后端未启动，也允许本地登录演示路由。
   }
 
-  const isDebugDriver = username.value === '123' && password.value === '123'
+  const isSeedOwner = username.value === 'dev-owner' && password.value === '123456'
+  const isDebugDriver = (username.value === '123' && password.value === '123') || isSeedOwner
+  const ownerVerified = Boolean(loginData?.ownerVerified) || isDebugDriver
+  const nextRole = ownerVerified ? 'driver' : (loginData?.role === 'admin' ? 'admin' : 'passenger')
+
   localStorage.setItem('session', JSON.stringify({
-    token: 'dev-token-user',
-    role: isDebugDriver ? 'driver' : 'passenger',
-    ownerVerified: isDebugDriver,
-    username: username.value,
-    userId: username.value,   // 供 ride 域等其他域用 X-User-Id 识别身份
+    token: loginData?.token || 'dev-token-user',
+    role: nextRole,
+    ownerVerified,
+    username: loginData?.username || username.value,
+    userId: loginData?.userId || username.value,
   }))
-  router.push(isDebugDriver ? '/driver/home' : '/passenger/home')
+  router.push(ownerVerified ? '/driver/home' : '/passenger/home')
 }
 </script>
 

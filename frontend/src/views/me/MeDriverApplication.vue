@@ -12,9 +12,6 @@
       <van-button type="primary" block :loading="loading" @click="submitApplication">
         {{ status === 'pending' ? '已提交，刷新状态' : '提交车主身份申请' }}
       </van-button>
-      <van-button plain type="default" block to="/me/vehicles">
-        去登记车辆
-      </van-button>
     </section>
   </div>
 </template>
