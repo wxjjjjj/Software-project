@@ -12,7 +12,7 @@
     </section>
 
     <section class="page-card action-list">
-      <router-link to="/me/driver-application" class="action-row">
+      <router-link v-if="!session.ownerVerified" to="/me/driver-application" class="action-row">
         <span>车主身份认证</span><b>></b>
       </router-link>
       <router-link to="/me/vehicles" class="action-row">

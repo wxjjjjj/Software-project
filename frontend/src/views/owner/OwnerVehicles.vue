@@ -71,8 +71,8 @@
             <div class="tags">
               <van-tag type="success" v-if="item.verified">已认证</van-tag>
               <van-tag type="warning" v-else>待认证</van-tag>
-              <van-tag :type="item.status === 'available' ? 'primary' : 'default'">
-                {{ item.status === 'available' ? '可接单' : '已停用' }}
+              <van-tag :type="vehicleServiceTagType(item)">
+                {{ vehicleServiceText(item) }}
               </van-tag>
             </div>
           </div>
@@ -173,6 +173,20 @@ function normalizeVehicle(item) {
     verified: normalizeVerified(item.verified),
     status: item.status === 'disabled' ? 'disabled' : 'available'
   }
+}
+
+function vehicleServiceText(item) {
+  if (item.status === 'disabled') {
+    return '已停用'
+  }
+  return item.verified ? '可接单' : '待认证不可接单'
+}
+
+function vehicleServiceTagType(item) {
+  if (item.status === 'disabled') {
+    return 'default'
+  }
+  return item.verified ? 'primary' : 'warning'
 }
 
 async function refreshVehicles() {
