@@ -1,61 +1,71 @@
 <template>
   <div class="vehicle-form-page">
-    <section class="page-card">
-      <h2>{{ isEditing ? '车主-编辑车辆信息' : '车主-新增车辆' }}</h2>
-      <p class="hint">{{ isEditing ? '修改车辆信息后保存，便于接单时快速选择。' : '请填写车辆基础信息，提交后可在车辆主页继续管理。' }}</p>
+    <section class="page-card vehicle-editor-card">
+      <div class="form-head">
+        <div class="head-copy">
+          <div class="eyebrow">车辆资料</div>
+          <h2>{{ isEditing ? '编辑车辆信息' : '新增车辆' }}</h2>
+          <p class="hint">{{ isEditing ? '修改车辆信息后保存，便于接单时快速选择。' : '填写车辆基础信息，提交后可在车辆主页继续管理。' }}</p>
+        </div>
+        <div class="head-badge">{{ isEditing ? '编辑' : '新增' }}</div>
+      </div>
 
       <van-form @submit="onSubmit" class="vehicle-form">
-        <van-field
-          v-model.trim="form.plateNo"
-          name="plateNo"
-          label="车牌号"
-          placeholder="例如：沪A12345"
-          :rules="[{ validator: plateValidator, message: '请输入规范车牌号，例如 沪A12345 或 沪AD12345' }]"
-        />
+        <div class="form-fields">
+          <van-field
+            v-model.trim="form.plateNo"
+            name="plateNo"
+            label="车牌号"
+            placeholder="例如：沪A12345"
+            :rules="[{ validator: plateValidator, message: '请输入规范车牌号，例如 沪A12345 或 沪AD12345' }]"
+          />
 
-        <van-field
-          v-model.trim="form.brand"
-          name="brand"
-          label="品牌型号"
-          placeholder="输入一个字可联想完整车型"
-          @focus="showModelSuggestions = true"
-          @blur="hideModelSuggestions"
-          :rules="[{ required: true, message: '请输入品牌型号' }]"
-        />
-        <div v-if="showModelSuggestions && filteredModelSuggestions.length" class="model-suggestions">
-          <button
-            v-for="model in filteredModelSuggestions"
-            :key="model"
-            type="button"
-            class="model-chip"
-            @mousedown.prevent="selectModel(model)"
-          >
-            {{ model }}
-          </button>
+          <div class="model-field-wrap">
+            <van-field
+              v-model.trim="form.brand"
+              name="brand"
+              label="品牌型号"
+              placeholder="输入一个字可联想完整车型"
+              @focus="showModelSuggestions = true"
+              @blur="hideModelSuggestions"
+              :rules="[{ required: true, message: '请输入品牌型号' }]"
+            />
+            <div v-if="showModelSuggestions && filteredModelSuggestions.length" class="model-suggestions">
+              <button
+                v-for="model in filteredModelSuggestions"
+                :key="model"
+                type="button"
+                class="model-chip"
+                @mousedown.prevent="selectModel(model)"
+              >
+                {{ model }}
+              </button>
+            </div>
+          </div>
+
+          <van-field
+            v-model.trim="form.color"
+            name="color"
+            label="颜色"
+            placeholder="例如：白色"
+            :rules="[{ required: true, message: '请输入颜色' }]"
+          />
+
+          <van-field
+            v-model.number="form.seatCapacity"
+            name="seatCapacity"
+            label="座位数"
+            type="digit"
+            placeholder="4"
+            :rules="[{ validator: seatValidator, message: '座位数请输入 2-9' }]"
+          />
         </div>
 
-        <van-field
-          v-model.trim="form.color"
-          name="color"
-          label="颜色"
-          placeholder="例如：白色"
-          :rules="[{ required: true, message: '请输入颜色' }]"
-        />
-
-        <van-field
-          v-model.number="form.seatCapacity"
-          name="seatCapacity"
-          label="座位数"
-          type="digit"
-          placeholder="4"
-          :rules="[{ validator: seatValidator, message: '座位数请输入 2-9' }]"
-        />
-
         <div class="form-actions">
-          <van-button plain type="default" block @click="goBack">返回车辆主页</van-button>
-          <van-button type="primary" native-type="submit" block :loading="submitting">
+          <van-button class="action-button action-button--primary" type="primary" native-type="submit" block :loading="submitting">
             {{ isEditing ? '保存修改' : '提交新增' }}
           </van-button>
+          <van-button class="action-button action-button--ghost" plain type="default" block @click="goBack">返回车辆主页</van-button>
         </div>
       </van-form>
     </section>
@@ -582,30 +592,126 @@ async function onSubmit() {
 .vehicle-form-page {
   display: grid;
   gap: 12px;
+  padding-bottom: 24px;
+}
+
+.vehicle-editor-card {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  border-color: #dbeafe;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 44%);
+}
+
+.vehicle-editor-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #165dff 0%, #10b981 100%);
+}
+
+.form-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 22px 16px 16px;
+}
+
+.head-copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.eyebrow {
+  color: #165dff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 25px;
+  line-height: 1.16;
 }
 
 .hint {
-  margin: 6px 0 12px;
-  color: #5f6c80;
+  margin: 0;
+  color: #52657d;
   font-size: 13px;
+  line-height: 1.65;
+}
+
+.head-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #165dff;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .vehicle-form {
   display: grid;
-  gap: 8px;
+  gap: 14px;
+  padding: 0 16px 16px;
+}
+
+.form-fields {
+  overflow: hidden;
+  border: 1px solid #edf2fb;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.form-fields :deep(.van-cell) {
+  align-items: center;
+  padding: 14px 14px;
+  background: transparent;
+}
+
+.form-fields :deep(.van-field__label) {
+  width: 82px;
+  color: #334155;
+  font-weight: 700;
+}
+
+.form-fields :deep(.van-field__control) {
+  color: #172033;
+  font-weight: 600;
+}
+
+.form-fields :deep(.van-field__control::placeholder) {
+  color: #a8b6c8;
+  font-weight: 500;
+}
+
+.model-field-wrap {
+  position: relative;
 }
 
 .model-suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 0 4px 4px;
+  padding: 0 14px 14px 98px;
+  background: #fff;
 }
 
 .model-chip {
   border: 1px solid #dbe6ff;
   border-radius: 999px;
-  background: #f4f7ff;
+  background: #f8fbff;
   color: #165dff;
   font-size: 12px;
   padding: 6px 10px;
@@ -617,8 +723,37 @@ async function onSubmit() {
 }
 
 .form-actions {
-  margin-top: 10px;
   display: grid;
   gap: 8px;
+}
+
+.action-button {
+  height: 44px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.action-button--primary {
+  box-shadow: 0 8px 18px rgba(22, 93, 255, 0.18);
+}
+
+.action-button--ghost {
+  color: #33506f;
+  background: #f8fbff;
+  border-color: #dbeafe;
+}
+
+@media (max-width: 360px) {
+  .form-head {
+    flex-direction: column;
+  }
+
+  .head-badge {
+    align-self: flex-start;
+  }
+
+  .model-suggestions {
+    padding-left: 14px;
+  }
 }
 </style>
