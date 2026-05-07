@@ -130,7 +130,7 @@ function hydrateFormByVehicleId(vehicleId) {
   const target = vehicles.value.find((item) => item.vehicleId === vehicleId)
   if (!target) {
     showNotify({ type: 'warning', message: '未找到要编辑的车辆，请重新选择' })
-    router.replace('/driver/vehicles')
+    router.replace('/me/vehicles')
     return
   }
   form.plateNo = target.plateNo
@@ -145,7 +145,15 @@ function seatValidator(value) {
 }
 
 function goBack() {
-  router.push('/driver/vehicles')
+  router.push('/me/vehicles')
+}
+
+function vehicleErrorMessage(error) {
+  const message = error?.message || ''
+  if (message.includes('plate_no already exists')) {
+    return '车牌号已存在，请换一个未登记的车牌号'
+  }
+  return message || '保存失败'
 }
 
 async function onSubmit() {
@@ -180,8 +188,12 @@ async function onSubmit() {
       })
       showNotify({ type: 'success', message: '车辆添加成功' })
     }
-    router.push('/driver/vehicles')
+    router.push('/me/vehicles')
   } catch (error) {
+    if ((error?.message || '').includes('plate_no already exists')) {
+      showNotify({ type: 'danger', message: vehicleErrorMessage(error) })
+      return
+    }
     showNotify({ type: 'danger', message: error.message || '保存失败' })
   } finally {
     submitting.value = false

@@ -2,9 +2,9 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Always load backend/.env no matter where uvicorn is started from.
-_BACKEND_ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
-load_dotenv(dotenv_path=_BACKEND_ENV_PATH)
+# 显式加载 backend/.env，不依赖启动目录
+_env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 
 def _as_bool(value: str, default: bool = False) -> bool:

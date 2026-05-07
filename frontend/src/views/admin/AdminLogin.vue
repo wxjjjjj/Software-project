@@ -43,8 +43,9 @@ async function login() {
   localStorage.setItem('session', JSON.stringify({
     token: 'dev-token-admin',
     role: 'admin',
-    ownerVerified: false,
-    username: username.value
+    ownerVerified: true,
+    username: username.value,
+    userId: username.value
   }))
   router.push('/admin/users')
 }

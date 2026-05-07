@@ -194,11 +194,11 @@ async function refreshVehicles() {
 }
 
 function startEdit(item) {
-  router.push(`/driver/vehicles/${item.vehicleId}/edit`)
+  router.push(`/me/vehicles/${item.vehicleId}/edit`)
 }
 
 function goCreateVehicle() {
-  router.push('/driver/vehicles/create')
+  router.push('/me/vehicles/create')
 }
 
 async function goPendingVerify() {
@@ -222,7 +222,7 @@ function onVerifyActionSelect(action) {
 }
 
 function goVerify(vehicleId) {
-  router.push(`/driver/vehicles/${vehicleId}/verify`)
+  router.push(`/me/vehicles/${vehicleId}/verify`)
 }
 
 async function toggleStatus(item) {
