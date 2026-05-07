@@ -31,7 +31,7 @@
         <div class="qa-icon">🪪</div>
         <div class="qa-info">
           <div class="qa-title">车辆认证</div>
-          <div class="qa-sub">{{ pendingCount > 0 ? '还有 ' + pendingCount + ' 辆待认证' : '全部车辆已认证' }}</div>
+          <div class="qa-sub">{{ verifyActionHint }}</div>
         </div>
         <span class="qa-badge" v-if="pendingCount > 0">{{ pendingCount }}</span>
         <span class="qa-arrow">›</span>
@@ -69,8 +69,7 @@
             </div>
             <div class="meta">{{ item.brand }} · {{ item.color }}</div>
             <div class="tags">
-              <van-tag type="success" v-if="item.verified">已认证</van-tag>
-              <van-tag type="warning" v-else>待认证</van-tag>
+              <van-tag :type="vehicleVerifyTagType(item)">{{ vehicleVerifyText(item) }}</van-tag>
               <van-tag :type="vehicleServiceTagType(item)">
                 {{ vehicleServiceText(item) }}
               </van-tag>
@@ -84,9 +83,10 @@
               size="small"
               type="success"
               plain
+              :disabled="isVehicleVerifyPending(item)"
               @click="goVerify(item.vehicleId)"
             >
-              去认证
+              {{ isVehicleVerifyPending(item) ? '审核中' : '去认证' }}
             </van-button>
             <van-button
               size="small"
@@ -130,11 +130,24 @@ const showVerifySheet = ref(false)
 const router = useRouter()
 const totalCount = computed(() => vehicles.value.length)
 const verifiedCount = computed(() => vehicles.value.filter((item) => item.verified).length)
-const pendingCount = computed(() => totalCount.value - verifiedCount.value)
+const pendingCount = computed(() => vehicles.value.filter((item) => !item.verified && !isVehicleVerifyPending(item)).length)
+const reviewPendingCount = computed(() => vehicles.value.filter(isVehicleVerifyPending).length)
 const pendingVehicles = computed(() => vehicles.value.filter((item) => !item.verified))
+const verifyActionHint = computed(() => {
+  if (pendingCount.value > 0) {
+    return '还有 ' + pendingCount.value + ' 辆待认证'
+  }
+  if (reviewPendingCount.value > 0) {
+    return '还有 ' + reviewPendingCount.value + ' 辆审核中'
+  }
+  return '全部车辆已认证'
+})
 const verifySheetActions = computed(() => pendingVehicles.value.map((item) => ({
-  name: `${item.plateNo} · ${item.brand} · ${item.color}`,
-  vehicleId: item.vehicleId
+  name: isVehicleVerifyPending(item)
+    ? `${item.plateNo} · 该车辆认证正在审核`
+    : `${item.plateNo} · ${item.brand} · ${item.color}`,
+  vehicleId: item.vehicleId,
+  disabled: isVehicleVerifyPending(item)
 })))
 
 // 页面进入时先拉取车辆列表。
@@ -171,8 +184,27 @@ function normalizeVehicle(item) {
     color: String(item.color ?? ''),
     seatCapacity: Number(item.seatCapacity ?? item.seat_capacity ?? 4),
     verified: normalizeVerified(item.verified),
+    verifyStatus: String(item.verifyStatus ?? item.verify_status ?? '').toLowerCase(),
     status: item.status === 'disabled' ? 'disabled' : 'available'
   }
+}
+
+function isVehicleVerifyPending(item) {
+  return item.verifyStatus === 'pending'
+}
+
+function vehicleVerifyText(item) {
+  if (item.verified || item.verifyStatus === 'approved') {
+    return '已认证'
+  }
+  return isVehicleVerifyPending(item) ? '审核中' : '待认证'
+}
+
+function vehicleVerifyTagType(item) {
+  if (item.verified || item.verifyStatus === 'approved') {
+    return 'success'
+  }
+  return isVehicleVerifyPending(item) ? 'primary' : 'warning'
 }
 
 function vehicleServiceText(item) {
@@ -217,12 +249,21 @@ function goCreateVehicle() {
 
 async function goPendingVerify() {
   if (pendingVehicles.value.length === 0) {
-    showNotify({ type: 'success', message: '当前没有待认证车辆' })
+    const message = reviewPendingCount.value > 0
+      ? '该车辆认证正在审核'
+      : '当前没有待认证车辆'
+    showNotify({ type: reviewPendingCount.value > 0 ? 'warning' : 'success', message })
     return
   }
 
-  if (pendingVehicles.value.length === 1) {
-    goVerify(pendingVehicles.value[0].vehicleId)
+  if (pendingVehicles.value.length === 1 && isVehicleVerifyPending(pendingVehicles.value[0])) {
+    showNotify({ type: 'warning', message: '该车辆认证正在审核' })
+    return
+  }
+
+  const submittableVehicles = pendingVehicles.value.filter((item) => !isVehicleVerifyPending(item))
+  if (submittableVehicles.length === 1 && pendingVehicles.value.length === 1) {
+    goVerify(submittableVehicles[0].vehicleId)
     return
   }
 
@@ -230,6 +271,10 @@ async function goPendingVerify() {
 }
 
 function onVerifyActionSelect(action) {
+  if (action?.disabled) {
+    showNotify({ type: 'warning', message: '该车辆认证正在审核' })
+    return
+  }
   if (action?.vehicleId) {
     goVerify(action.vehicleId)
   }

@@ -392,6 +392,8 @@ def _as_bool(value) -> bool:
 
 
 def _format_vehicle(row: dict) -> dict:
+    verified = _as_bool(row.get("verified", False))
+    verify_status = row.get("verify_status") or ("approved" if verified else "unsubmitted")
     return {
         "vehicle_id": str(row["vehicle_id"]),
         "owner_id": str(row["owner_id"]),
@@ -399,7 +401,8 @@ def _format_vehicle(row: dict) -> dict:
         "brand": row.get("brand") or "",
         "color": row.get("color") or "",
         "seat_capacity": int(row["seat_capacity"]),
-        "verified": _as_bool(row.get("verified", False)),
+        "verified": verified,
+        "verify_status": verify_status,
         "status": row["status"],
     }
 
@@ -935,11 +938,20 @@ def list_vehicles(owner_id: str) -> dict:
             with get_ride_conn() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute(
-                        """SELECT id AS vehicle_id, owner_user_id AS owner_id,
-                                  plate_no, brand, color, seat_capacity, verified, status
-                           FROM vehicle
-                           WHERE owner_user_id = %s
-                           ORDER BY created_at DESC""",
+                        """SELECT v.id AS vehicle_id, v.owner_user_id AS owner_id,
+                                  v.plate_no, v.brand, v.color, v.seat_capacity,
+                                  v.verified, v.status,
+                                  CASE
+                                    WHEN v.verified=1 THEN 'approved'
+                                    WHEN EXISTS (
+                                      SELECT 1 FROM vehicle_verify_request r
+                                      WHERE r.vehicle_id=v.id AND r.status='pending'
+                                    ) THEN 'pending'
+                                    ELSE 'unsubmitted'
+                                  END AS verify_status
+                           FROM vehicle v
+                           WHERE v.owner_user_id = %s
+                           ORDER BY v.created_at DESC""",
                         (owner_id,),
                     )
                     rows = cursor.fetchall()
@@ -947,7 +959,21 @@ def list_vehicles(owner_id: str) -> dict:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"db error: {exc}") from exc
 
-    vehicles = [dict(v) for v in _VEHICLES.values() if v["owner_id"] == owner_id]
+    vehicles = []
+    for vehicle in _VEHICLES.values():
+        if vehicle["owner_id"] != owner_id:
+            continue
+        item = dict(vehicle)
+        has_pending_request = any(
+            req["vehicle_id"] == vehicle["vehicle_id"] and req["status"] == "pending"
+            for req in _VEHICLE_VERIFY_REQUESTS.values()
+        )
+        item["verify_status"] = (
+            "approved"
+            if _as_bool(item.get("verified", False))
+            else "pending" if has_pending_request else "unsubmitted"
+        )
+        vehicles.append(item)
     return {"items": vehicles}
 
 
