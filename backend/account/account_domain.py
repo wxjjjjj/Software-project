@@ -30,7 +30,6 @@ def _build_user_login_response(row: dict) -> dict:
         "role": response_role,
         "ownerVerified": owner_verified,
         "username": row["username"],
-        "userId": str(row.get("id", row["username"])),
     }
 
 
@@ -83,14 +82,12 @@ def register_user(payload: UserRegister) -> dict:
 
 def login_user(payload: UserLogin) -> dict:
     if ACCOUNT_USE_MOCK:
-        owner_verified = payload.username == "dev-owner"
         return {
             "message": "login success",
-            "token": f"dev-token-{payload.username}",
+            "token": "dev-token-user",
             "role": "user",
-            "ownerVerified": owner_verified,
+            "ownerVerified": False,
             "username": payload.username,
-            "userId": payload.username,
         }
 
     password_hash = _hash_password(payload.password)
