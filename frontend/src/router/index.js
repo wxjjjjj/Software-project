@@ -49,6 +49,15 @@ function getSession() {
   }
 }
 
+function isOwnerVerified(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    return ['1', 'true', 'yes', 'y', 'on'].includes(value.trim().toLowerCase())
+  }
+  return Boolean(value)
+}
+
 //路由定义数组
 const routes = [
   {
@@ -92,10 +101,10 @@ const routes = [
 
       { path: 'me/profile', component: MeProfile, meta: { requiresAuth: true, role: 'user' } },
       { path: 'me/driver-application', component: MeDriverApplication, meta: { requiresAuth: true, role: 'user' } },
-      { path: 'me/vehicles/create', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'user' } },
-      { path: 'me/vehicles/:vehicleId/edit', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'user' } },
-      { path: 'me/vehicles/:vehicleId/verify', component: OwnerVehicleVerify, meta: { requiresAuth: true, role: 'user' } },
-      { path: 'me/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'user' } },
+      { path: 'me/vehicles/create', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/vehicles/:vehicleId/edit', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/vehicles/:vehicleId/verify', component: OwnerVehicleVerify, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
       { path: 'me/messages', component: MeMessages, meta: { requiresAuth: true, role: 'user' } },
       { path: 'me/feedback', component: MeFeedback, meta: { requiresAuth: true, role: 'user' } },
       { path: 'me/security', component: MeSecurity, meta: { requiresAuth: true, role: 'user' } },
@@ -150,26 +159,28 @@ const router = createRouter({
 
 //这个函数会在每次路由跳转之前执行，用于权限校验。
 router.beforeEach((to) => {
-  const session = getSession() //获取当前登录信息
-  const isPublic = Boolean(to.meta.public)  //目标路由是否为公开页面
+  const session = getSession()
+  const isPublic = Boolean(to.meta.public)
 
   if (isPublic) {
     return true
   }
 
-  //如果不是公开页面，检查是否登录（是否有token登录令牌）
   if (!session.token) {
-    return '/login' //未登录，跳转到登录页
+    return '/login'
   }
 
-  //获取路由要求的角色
+  if (to.meta.ownerRequired && !isOwnerVerified(session.ownerVerified) && session.role !== 'admin') {
+    return '/me/driver-application'
+  }
+
   const routeRole = to.meta.role
   if (!routeRole) {
-    return true //理论上不会走到这里，因为一定会有role身份
+    return true
   }
 
   if (routeRole === 'passenger') {
-    return true //允许任何登录用户以乘客角色访问--这里可能有点不对？（后面再看，因为管理员不能吧？）
+    return true
   }
 
   if (routeRole === 'user') {
@@ -177,11 +188,10 @@ router.beforeEach((to) => {
   }
 
   if (routeRole === 'driver') {
-    //司机检查 `ownerVerified`（是否已完成认证）
-    if (session.ownerVerified || session.role === 'admin') {
+    if (isOwnerVerified(session.ownerVerified) || session.role === 'admin') {
       return true
     }
-    return '/403' //未认证的司机或普通乘客访问司机页面，403--禁止访问
+    return '/403'
   }
 
   if (routeRole === 'admin') {
@@ -193,5 +203,4 @@ router.beforeEach((to) => {
 
   return true
 })
-
 export default router

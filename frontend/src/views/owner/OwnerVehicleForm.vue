@@ -10,16 +10,29 @@
           name="plateNo"
           label="车牌号"
           placeholder="例如：沪A12345"
-          :rules="[{ required: true, message: '请输入车牌号' }]"
+          :rules="[{ validator: plateValidator, message: '请输入规范车牌号，例如 沪A12345 或 沪AD12345' }]"
         />
 
         <van-field
           v-model.trim="form.brand"
           name="brand"
-          label="品牌"
-          placeholder="例如：比亚迪秦"
-          :rules="[{ required: true, message: '请输入品牌' }]"
+          label="品牌型号"
+          placeholder="输入一个字可联想完整车型"
+          @focus="showModelSuggestions = true"
+          @blur="hideModelSuggestions"
+          :rules="[{ required: true, message: '请输入品牌型号' }]"
         />
+        <div v-if="showModelSuggestions && filteredModelSuggestions.length" class="model-suggestions">
+          <button
+            v-for="model in filteredModelSuggestions"
+            :key="model"
+            type="button"
+            class="model-chip"
+            @mousedown.prevent="selectModel(model)"
+          >
+            {{ model }}
+          </button>
+        </div>
 
         <van-field
           v-model.trim="form.color"
@@ -63,6 +76,26 @@ const route = useRoute()
 const router = useRouter()
 const submitting = ref(false)
 const vehicles = ref([])
+const showModelSuggestions = ref(false)
+
+const PLATE_NO_PATTERN = /^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{5,6}$/
+const VEHICLE_MODEL_SUGGESTIONS = [
+  '比亚迪秦PLUS',
+  '比亚迪宋PLUS',
+  '比亚迪汉',
+  '特斯拉Model 3',
+  '特斯拉Model Y',
+  '丰田凯美瑞',
+  '丰田卡罗拉',
+  '本田雅阁',
+  '本田思域',
+  '大众朗逸',
+  '大众帕萨特',
+  '日产轩逸',
+  '吉利星瑞',
+  '理想L6',
+  '小鹏P7',
+]
 
 const form = reactive({
   plateNo: '',
@@ -72,11 +105,20 @@ const form = reactive({
 })
 
 const editVehicleId = computed(() => {
-  const id = Number(route.params.vehicleId)
-  return Number.isInteger(id) && id > 0 ? id : null
+  const id = String(route.params.vehicleId || '').trim()
+  return id || null
 })
 
 const isEditing = computed(() => editVehicleId.value !== null)
+const filteredModelSuggestions = computed(() => {
+  const keyword = form.brand.trim().toLowerCase()
+  if (!keyword) {
+    return VEHICLE_MODEL_SUGGESTIONS.slice(0, 8)
+  }
+  return VEHICLE_MODEL_SUGGESTIONS
+    .filter((model) => model.toLowerCase().includes(keyword))
+    .slice(0, 8)
+})
 
 onMounted(async () => {
   await loadVehicles()
@@ -127,7 +169,7 @@ async function loadVehicles() {
 }
 
 function hydrateFormByVehicleId(vehicleId) {
-  const target = vehicles.value.find((item) => item.vehicleId === vehicleId)
+  const target = vehicles.value.find((item) => String(item.vehicleId) === String(vehicleId))
   if (!target) {
     showNotify({ type: 'warning', message: '未找到要编辑的车辆，请重新选择' })
     router.replace('/me/vehicles')
@@ -142,6 +184,25 @@ function hydrateFormByVehicleId(vehicleId) {
 function seatValidator(value) {
   const num = Number(value)
   return Number.isInteger(num) && num >= 2 && num <= 9
+}
+
+function normalizePlateNo(value) {
+  return String(value || '').trim().toUpperCase()
+}
+
+function plateValidator(value) {
+  return PLATE_NO_PATTERN.test(normalizePlateNo(value))
+}
+
+function hideModelSuggestions() {
+  window.setTimeout(() => {
+    showModelSuggestions.value = false
+  }, 120)
+}
+
+function selectModel(model) {
+  form.brand = model
+  showModelSuggestions.value = false
 }
 
 function goBack() {
@@ -162,14 +223,19 @@ async function onSubmit() {
   }
 
   const payload = {
-    plate_no: form.plateNo.toUpperCase(),
+    plate_no: normalizePlateNo(form.plateNo),
     brand: form.brand,
     color: form.color,
     seat_capacity: Number(form.seatCapacity)
   }
 
+  if (!plateValidator(payload.plate_no)) {
+    showNotify({ type: 'warning', message: '请输入规范车牌号，例如 沪A12345 或 沪AD12345' })
+    return
+  }
+
   const duplicate = vehicles.value.some(
-    (item) => item.plateNo === payload.plate_no && item.vehicleId !== editVehicleId.value
+    (item) => item.plateNo === payload.plate_no && String(item.vehicleId) !== String(editVehicleId.value)
   )
   if (duplicate) {
     showNotify({ type: 'warning', message: '车牌号已存在' })
@@ -216,6 +282,27 @@ async function onSubmit() {
 .vehicle-form {
   display: grid;
   gap: 8px;
+}
+
+.model-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 4px 4px;
+}
+
+.model-chip {
+  border: 1px solid #dbe6ff;
+  border-radius: 999px;
+  background: #f4f7ff;
+  color: #165dff;
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.model-chip:active {
+  background: #e8efff;
 }
 
 .form-actions {

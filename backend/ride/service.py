@@ -49,6 +49,11 @@ app.add_middleware(
 )
 
 
+def _require_owner_verified(owner_verified: bool) -> None:
+    if not owner_verified:
+        raise HTTPException(status_code=403, detail="owner identity verification required")
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "ride"}
@@ -132,8 +137,10 @@ def api_accept_order(
     order_id: str,
     payload: AcceptOrderRequest,
     x_user_id: str = Header(default="dev-owner-1", alias="X-User-Id"),
+    x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """车主接单（仅限 published/full 状态）"""
+    _require_owner_verified(x_owner_verified)
     return accept_order(order_id, payload, x_user_id)
 
 
@@ -149,8 +156,10 @@ def api_complete_order(
 @app.get("/api/vehicles")
 def api_list_vehicles(
     x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """查询当前车主名下所有可用车辆"""
+    _require_owner_verified(x_owner_verified)
     return list_vehicles(x_user_id)
 
 
@@ -158,8 +167,10 @@ def api_list_vehicles(
 def api_create_vehicle(
     payload: VehicleCreateRequest,
     x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """新增当前车主车辆"""
+    _require_owner_verified(x_owner_verified)
     return create_vehicle(payload, x_user_id)
 
 
@@ -188,15 +199,27 @@ def api_review_vehicle_verify_request(
 
 
 @app.put("/api/vehicles/{vehicle_id}")
-def api_update_vehicle(vehicle_id: str, payload: VehicleUpdateRequest):
+def api_update_vehicle(
+    vehicle_id: str,
+    payload: VehicleUpdateRequest,
+    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
+):
     """编辑车辆基础信息"""
-    return update_vehicle(vehicle_id, payload)
+    _require_owner_verified(x_owner_verified)
+    return update_vehicle(vehicle_id, payload, x_user_id)
 
 
 @app.patch("/api/vehicles/{vehicle_id}/status")
-def api_update_vehicle_status(vehicle_id: str, payload: VehicleStatusUpdateRequest):
+def api_update_vehicle_status(
+    vehicle_id: str,
+    payload: VehicleStatusUpdateRequest,
+    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
+):
     """切换车辆状态"""
-    return update_vehicle_status(vehicle_id, payload)
+    _require_owner_verified(x_owner_verified)
+    return update_vehicle_status(vehicle_id, payload, x_user_id)
 
 
 @app.patch("/api/vehicles/{vehicle_id}/verified")
@@ -216,12 +239,19 @@ def api_submit_vehicle_verify_request(
     vehicle_id: str,
     payload: VehicleVerifySubmitRequest,
     x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """车主提交车辆认证资料"""
+    _require_owner_verified(x_owner_verified)
     return submit_vehicle_verify_request(vehicle_id, payload, x_user_id)
 
 
 @app.delete("/api/vehicles/{vehicle_id}")
-def api_delete_vehicle(vehicle_id: str):
+def api_delete_vehicle(
+    vehicle_id: str,
+    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
+):
     """删除车辆"""
-    return delete_vehicle(vehicle_id)
+    _require_owner_verified(x_owner_verified)
+    return delete_vehicle(vehicle_id, x_user_id)
