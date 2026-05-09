@@ -125,3 +125,36 @@ yzr
 7. 钱包余额与支付流水只允许功能3维护。
 
 ## 去看docs/快速开发指南.md
+
+
+## Quick Start
+1. 执行sql/下的建库建表sql文件；
+
+2. 执行脚本，在backend/下创建.env文件，修改.env文件内数据库连接的设置。
+
+如果没有数据库，保持默认Mock模式。 
+```bash
+cd backend
+pip install -r requirements.txt
+./scripts/bootstrap_env.ps1
+```
+
+3. 初始化前端，启动后端服务
+```bash
+cd frontend
+npm install
+
+cd backend
+./scripts/run_services.ps1
+# 这会同时启动 4 个服务：
+# 8001：账号服务
+# 8002：订单车辆服务 (zj、hws 已完成)
+# 8003：交易运营服务
+# 8000：网关（前端只连这个）
+```
+
+4. 启动前端，查看效果，测试功能即可
+```bash
+cd frontend
+npm run dev
+```
