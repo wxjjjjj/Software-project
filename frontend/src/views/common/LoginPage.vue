@@ -41,13 +41,15 @@ async function login() {
     // 开发态即使后端未启动，也允许本地登录演示路由。
   }
 
+  const isDebugDriver = username.value === '123' && password.value === '123'
   localStorage.setItem('session', JSON.stringify({
     token: 'dev-token-user',
-    role: 'user',
-    ownerVerified: false,
-    username: username.value
+    role: isDebugDriver ? 'driver' : 'passenger',
+    ownerVerified: isDebugDriver,
+    username: username.value,
+    userId: username.value,   // 供 ride 域等其他域用 X-User-Id 识别身份
   }))
-  router.push('/passenger/home')
+  router.push(isDebugDriver ? '/driver/home' : '/passenger/home')
 }
 </script>
 

@@ -8,6 +8,13 @@ import RegisterPage from '../views/common/RegisterPage.vue'//wyx
 //出错页面
 import NotFoundPage from '../views/common/NotFoundPage.vue'
 import ForbiddenPage from '../views/common/ForbiddenPage.vue'
+import UserProfile from '../views/common/UserProfile.vue'
+//个人中心
+import MeProfile from '../views/me/MeProfile.vue'
+import MeDriverApplication from '../views/me/MeDriverApplication.vue'
+import MeMessages from '../views/me/MeMessages.vue'
+import MeFeedback from '../views/me/MeFeedback.vue'
+import MeSecurity from '../views/me/MeSecurity.vue'
 //乘客
 import PassengerHome from '../views/passenger/PassengerHome.vue'//hws、zj
 import PassengerOrderPublish from '../views/passenger/PassengerOrderPublish.vue'//hws、zj
@@ -18,8 +25,9 @@ import PassengerPayment from '../views/passenger/PassengerPayment.vue'//yzr
 import PassengerFeedback from '../views/passenger/PassengerFeedback.vue'//yzr
 //车主owner/driver
 import OwnerHome from '../views/owner/OwnerHome.vue'//hws、zj
-import OwnerCertification from '../views/owner/OwnerCertification.vue'//wyx
 import OwnerVehicles from '../views/owner/OwnerVehicles.vue'//hws、zj
+import OwnerVehicleForm from '../views/owner/OwnerVehicleForm.vue'//zj
+import OwnerVehicleVerify from '../views/owner/OwnerVehicleVerify.vue'//zj
 import OwnerOrderAvailable from '../views/owner/OwnerOrderAvailable.vue'//hws、zj
 import OwnerOrderMine from '../views/owner/OwnerOrderMine.vue'//hws、zj
 import OwnerWallet from '../views/owner/OwnerWallet.vue'//yzr
@@ -28,6 +36,7 @@ import OwnerFeedback from '../views/owner/OwnerFeedback.vue'//yzr
 import AdminLogin from '../views/admin/AdminLogin.vue'//wyx
 import AdminUsers from '../views/admin/AdminUsers.vue'//wyx
 import AdminOrders from '../views/admin/AdminOrders.vue'//hws、zj
+import AdminVehicles from '../views/admin/AdminVehicles.vue'//zj
 import AdminFeedback from '../views/admin/AdminFeedback.vue'//yzr
 
 function getSession() {
@@ -38,6 +47,15 @@ function getSession() {
     //不存在则返回空对象
     return {}
   }
+}
+
+function isOwnerVerified(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    return ['1', 'true', 'yes', 'y', 'on'].includes(value.trim().toLowerCase())
+  }
+  return Boolean(value)
 }
 
 //路由定义数组
@@ -76,27 +94,49 @@ const routes = [
       { path: 'passenger/home', component: PassengerHome, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/orders/publish', component: PassengerOrderPublish, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/orders/search', component: PassengerOrderSearch, meta: { requiresAuth: true, role: 'passenger' } },
-      { path: 'passenger/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/orders/mine', component: PassengerOrderMine, meta: { requiresAuth: true, role: 'passenger' } },
+      { path: 'passenger/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/payment/:orderId', component: PassengerPayment, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/feedback', component: PassengerFeedback, meta: { requiresAuth: true, role: 'passenger' } },
 
+      { path: 'me/profile', component: MeProfile, meta: { requiresAuth: true, role: 'user' } },
+      { path: 'me/driver-application', component: MeDriverApplication, meta: { requiresAuth: true, role: 'user' } },
+      { path: 'me/vehicles/create', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/vehicles/:vehicleId/edit', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/vehicles/:vehicleId/verify', component: OwnerVehicleVerify, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/messages', component: MeMessages, meta: { requiresAuth: true, role: 'user' } },
+      { path: 'me/feedback', component: MeFeedback, meta: { requiresAuth: true, role: 'user' } },
+      { path: 'me/security', component: MeSecurity, meta: { requiresAuth: true, role: 'user' } },
+      { path: 'users/:userId', component: UserProfile, meta: { requiresAuth: true, role: 'user' } },
+
       { path: 'driver/home', component: OwnerHome, meta: { requiresAuth: true, role: 'driver' } },
-      { path: 'driver/certification', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
-      { path: 'driver/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'driver' } },
+      { path: 'driver/vehicles/create', redirect: '/me/vehicles/create' },
+      { path: 'driver/vehicles/:vehicleId/edit', redirect: to => `/me/vehicles/${to.params.vehicleId}/edit` },
+      { path: 'driver/vehicles/:vehicleId/verify', redirect: to => `/me/vehicles/${to.params.vehicleId}/verify` },
+      { path: 'driver/vehicles', redirect: '/me/vehicles' },
       { path: 'driver/orders/available', component: OwnerOrderAvailable, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/mine', component: OwnerOrderMine, meta: { requiresAuth: true, role: 'driver' } },
+      { path: 'driver/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/wallet', component: OwnerWallet, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/feedback', component: OwnerFeedback, meta: { requiresAuth: true, role: 'driver' } },
 
       { path: 'admin/users', component: AdminUsers, meta: { requiresAuth: true, role: 'admin' } },
       { path: 'admin/orders', component: AdminOrders, meta: { requiresAuth: true, role: 'admin' } },
+      { path: 'admin/vehicle-verifications', component: AdminVehicles, meta: { requiresAuth: true, role: 'admin' } },
+      { path: 'admin/vehicles', redirect: '/admin/vehicle-verifications' },
       { path: 'admin/feedback', component: AdminFeedback, meta: { requiresAuth: true, role: 'admin' } },
+      { path: 'admin/driver-applications', component: AdminUsers, meta: { requiresAuth: true, role: 'admin' } },
+      { path: 'admin/withdrawals', component: AdminFeedback, meta: { requiresAuth: true, role: 'admin' } },
+      { path: 'admin/stats', component: AdminOrders, meta: { requiresAuth: true, role: 'admin' } },
 
       //这里就是owner和driver都可以定向到driver，这样的目的是语义上的双重身份：车辆的owner，乘客的driver（虽然不是非必需的）
       { path: 'owner/home', redirect: '/driver/home' },
-      { path: 'owner/certification', redirect: '/driver/certification' },
-      { path: 'owner/vehicles', redirect: '/driver/vehicles' },
+      { path: 'owner/certification', redirect: '/me/driver-application' },
+      { path: 'owner/vehicles/create', redirect: '/me/vehicles/create' },
+      { path: 'owner/vehicles/:vehicleId/edit', redirect: to => `/me/vehicles/${to.params.vehicleId}/edit` },
+      { path: 'owner/vehicles/:vehicleId/verify', redirect: to => `/me/vehicles/${to.params.vehicleId}/verify` },
+      { path: 'owner/vehicles', redirect: '/me/vehicles' },
       { path: 'owner/orders/available', redirect: '/driver/orders/available' },
       { path: 'owner/orders/mine', redirect: '/driver/orders/mine' },
       { path: 'owner/wallet', redirect: '/driver/wallet' },
@@ -119,34 +159,39 @@ const router = createRouter({
 
 //这个函数会在每次路由跳转之前执行，用于权限校验。
 router.beforeEach((to) => {
-  const session = getSession() //获取当前登录信息
-  const isPublic = Boolean(to.meta.public)  //目标路由是否为公开页面
+  const session = getSession()
+  const isPublic = Boolean(to.meta.public)
 
   if (isPublic) {
     return true
   }
 
-  //如果不是公开页面，检查是否登录（是否有token登录令牌）
   if (!session.token) {
-    return '/login' //未登录，跳转到登录页
+    return '/login'
   }
 
-  //获取路由要求的角色
+  if (to.meta.ownerRequired && !isOwnerVerified(session.ownerVerified) && session.role !== 'admin') {
+    return '/me/driver-application'
+  }
+
   const routeRole = to.meta.role
   if (!routeRole) {
-    return true //理论上不会走到这里，因为一定会有role身份
+    return true
   }
 
   if (routeRole === 'passenger') {
-    return true //允许任何登录用户以乘客角色访问--这里可能有点不对？（后面再看，因为管理员不能吧？）
+    return true
+  }
+
+  if (routeRole === 'user') {
+    return true
   }
 
   if (routeRole === 'driver') {
-    //司机检查 `ownerVerified`（是否已完成认证）
-    if (session.ownerVerified) {
+    if (isOwnerVerified(session.ownerVerified) || session.role === 'admin') {
       return true
     }
-    return '/403' //未认证的司机或普通乘客访问司机页面，403--禁止访问
+    return '/403'
   }
 
   if (routeRole === 'admin') {
@@ -158,5 +203,4 @@ router.beforeEach((to) => {
 
   return true
 })
-
 export default router

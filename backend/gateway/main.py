@@ -11,7 +11,7 @@ from backend.common.config import (
     RIDE_SERVICE_URL,
 )
 
-app = FastAPI(title="Rideshare Gateway Skeleton", version="0.1.0")
+app = FastAPI(title="Rideshare Gateway Skeleton", version="0.1.0", redirect_slashes=False)
 
 app.add_middleware(
     CORSMiddleware,
@@ -104,6 +104,14 @@ async def ride_orders_root_proxy(request: Request):
 )
 async def ride_vehicles_proxy(path: str, request: Request):
     _ = path
+    return await _forward(request, RIDE_SERVICE_URL)
+
+
+@app.api_route(
+    "/api/vehicles",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+)
+async def ride_vehicles_root_proxy(request: Request):
     return await _forward(request, RIDE_SERVICE_URL)
 
 

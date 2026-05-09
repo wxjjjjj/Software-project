@@ -24,6 +24,8 @@ def get_ride_conn():
         cursorclass=pymysql.cursors.DictCursor,
     )
     try:
+        with conn.cursor() as _c:
+            _c.execute("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci")
         yield conn
         conn.commit()
     except Exception:
