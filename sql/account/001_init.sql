@@ -33,34 +33,3 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 3. 创建车辆表
-CREATE TABLE cars (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    license_plate VARCHAR(20) NOT NULL,
-    car_model VARCHAR(50),
-    car_color VARCHAR(20),
-    is_approved BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ========================================================
--- 4. 初始化测试数据 
--- ========================================================
-
--- 插入内置管理员 (admin / 123456)
-INSERT INTO users (username, password, phone, real_name, id_card, role) 
-VALUES ('admin', '123456', '10000000000', '系统管理员', '000000000000000000', 'admin');
-
--- 插入一个已注册的车主 (yxx / yxx123)
-INSERT INTO users (username, password, phone, real_name, id_card, role, passenger_status, driver_status, passenger_score, driver_score) 
-VALUES ('yxx', 'yxx123', '18398173617', '王怡心', '510923200502178547', 'driver', 'active', 'approved', 100, 100);
-
--- 插入一个已认证的车主 (driver_test / 123456)
-INSERT INTO users (username, password, phone, real_name, id_card, role, driver_status, driver_score) 
-VALUES ('111', '111111', '13988889999', '李四', '110101199202025678', 'driver', 'approved', 98);
-
--- 为该车主绑定一辆已通过审核的车辆
-INSERT INTO cars (user_id, license_plate, car_model, car_color, is_approved)
-VALUES (2, '沪A88888', '特斯拉 Model 3', '白色', TRUE);

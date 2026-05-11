@@ -17,12 +17,16 @@
           <input v-model="form.license_plate" placeholder="如：沪A88888" />
         </div>
         <div class="form-item">
-          <label>车辆型号</label>
+          <label>品牌型号</label>
           <input v-model="form.car_model" placeholder="如：特斯拉 Model 3" />
         </div>
         <div class="form-item">
           <label>车身颜色</label>
           <input v-model="form.car_color" placeholder="如：黑色" />
+        </div>
+        <div class="form-item">
+          <label>座位数</label>
+          <input v-model="form.seats" placeholder="如：5" />
         </div>
         <button class="submit-btn" @click="handleApply" :disabled="loading">
           {{ loading ? '提交中...' : '提交认证申请' }}
@@ -31,7 +35,7 @@
 
       <!-- 情况 2：审核中 - 显示等待提示 -->
       <div v-else-if="status === 'pending'" class="status-box pending">
-        <div class="icon"></div>
+        <div class="icon">⏳</div>
         <h3>认证审核中</h3>
         <p>您的资料已提交，请耐心等待管理员审核。</p>
         <button class="refresh-btn-small" @click="fetchStatus">刷新进度</button>
@@ -39,7 +43,7 @@
 
       <!-- 情况 3：已通过 - 变身为“个人中心”，展示资料和名下车辆 -->
       <div v-else-if="status === 'approved' || status === 'active'" class="status-box success">
-        <div class="icon-success"></div>
+        <div class="icon-success">✔️</div>
         <h3>认证已通过</h3>
         
         <div class="user-profile-section">
@@ -68,13 +72,13 @@
             </div>
           </div>
         </div>
-
+        
         <button class="home-btn" @click="handleEnterDriverHome">进入车主首页</button>
       </div>
 
       <!-- 情况 4：被封禁 -->
       <div v-else-if="status === 'banned'" class="status-box banned">
-        <div class="icon"></div>
+        <div class="icon">🚫</div>
         <h3>车主权限已封禁</h3>
         <p>因信誉分过低或违规，您的车主身份已被停用。</p>
         <p class="score-tip">当前车主评分：{{ profile.driver_score }}</p>
@@ -96,7 +100,8 @@ const vehicles = ref([]) // 存储名下车辆
 const form = ref({
   license_plate: '',
   car_model: '',
-  car_color: ''
+  car_color: '',
+  seats: ''
 })
 
 // 获取数据：包括状态、资料和车辆列表
@@ -169,44 +174,100 @@ const handleApply = async () => {
 
 // 进入车主首页（带状态刷新）
 const handleEnterDriverHome = () => {
-  router.push('/driver/home').then(() => {
-    window.location.reload()
-  })
+  const session = JSON.parse(localStorage.getItem('session') || '{}')
+  
+  // 更新状态
+  session.role = 'driver'
+  session.ownerVerified = true
+  localStorage.setItem('session', JSON.stringify(session))
+  
+  // 跳转即可，不需要 reload()
+  // Layout.vue 会在路由跳转后检测到 session 变化并更新菜单
+  router.push('/driver/home')
 }
 
 onMounted(fetchStatus)
 </script>
 
 <style scoped>
+/* 容器及卡片框架 */
 .certification-container { padding: 20px; display: flex; justify-content: center; background: #f8f9fa; min-height: 80vh; }
 .page-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 450px; }
-h2 { text-align: center; margin-bottom: 25px; color: #2c3e50; }
 
-.tips { color: #856404; background: #fff3cd; border: 1px solid #ffeeba; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; }
+/* 统一大标题样式 */
+h2 { text-align: center; margin-bottom: 25px; font-size: 20px; font-weight: 700; color: #1e293b; }
+
+/* 统一状态标题 */
+h3 { font-size: 16px; font-weight: 800; color: #1e293b; margin-bottom: 10px; }
+
+/* 统一模块小标题 */
+h4 { margin: 0 0 10px 0; color: #94a3b8; font-size: 13px; font-weight: 700; text-transform: uppercase; }
+
+/* 提示条 */
+.tips { color: #f97316; background: #fff7ed; border: 1px solid #ffedd5; padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 20px; }
+
+/* 表单排版统一 */
 .form-item { margin-bottom: 15px; }
-.form-item label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; color: #34495e; }
-.form-item input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+.form-item label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 14px; color: #1e293b; }
+.form-item input { 
+  width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; 
+  box-sizing: border-box; font-size: 14px; color: #1e293b; transition: border-color 0.2s;
+}
+.form-item input:focus { border-color: #165DFF; outline: none; }
+.form-item input::placeholder { color: #94a3b8; }
 
-.submit-btn { width: 100%; padding: 14px; background: #1890ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+/* 按钮统一 */
+.submit-btn { 
+  width: 100%; padding: 14px; background: #165DFF; color: white; border: none; 
+  border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 15px; margin-top: 10px; transition: opacity 0.2s;
+}
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.submit-btn:active:not(:disabled) { transform: scale(0.98); }
+
+.home-btn { 
+  margin-top: 25px; width: 100%; padding: 14px; background: #10b981; color: white; 
+  border: none; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 15px; 
+}
+.home-btn:active { transform: scale(0.98); }
+
+.refresh-btn-small { 
+  background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 6px 14px; 
+  border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; margin-top: 10px; 
+}
+.refresh-btn-small:active { background: #f8fafc; }
 
 /* 状态展示区样式 */
 .status-box { text-align: center; padding: 30px 0; }
-.icon { font-size: 50px; margin-bottom: 15px; }
-.icon-success { font-size: 50px; color: #52c41a; margin-bottom: 10px; }
+.status-box p { font-size: 13px; color: #64748b; margin: 0; }
+.icon { font-size: 48px; margin-bottom: 15px; }
+.icon-success { font-size: 48px; color: #10b981; margin-bottom: 10px; }
 
-/* 个人信息与车辆列表 */
+/* 个人信息与车辆列表区块统一 */
 .user-profile-section, .vehicle-list-section {
-  text-align: left; background: #fcfcfc; border: 1px solid #f0f0f0; padding: 15px; border-radius: 10px; margin-top: 15px;
+  text-align: left; background: #f8fafc; border: 1px solid #f1f5f9; 
+  padding: 15px; border-radius: 12px; margin-top: 15px;
 }
-h4 { margin: 0 0 10px 0; color: #7f8c8d; font-size: 13px; text-transform: uppercase; }
-.info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-.car-card { background: white; border: 1px solid #eee; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
-.plate { font-weight: bold; color: #333; margin-right: 10px; }
-.model { color: #666; font-size: 13px; }
+.info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: #64748b; }
+.info-row b { font-weight: 800; color: #1e293b; }
 
-.text-red { color: #f5222d; }
-.status-tag.active { background: #e6f7ff; color: #1890ff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.no-data { font-size: 13px; color: #94a3b8; text-align: center; padding: 10px 0; }
+.car-card { background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; margin-bottom: 8px; }
+.car-main { display: flex; align-items: baseline; }
+.plate { font-weight: 700; font-size: 15px; color: #1e293b; margin-right: 10px; }
+.model { color: #64748b; font-size: 12px; }
 
-.home-btn { margin-top: 25px; width: 100%; padding: 12px; background: #52c41a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-.refresh-btn-small { background: none; border: 1px solid #ddd; color: #999; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 10px; }
+/* 辅助与状态类 */
+.text-red { color: #ef4444 !important; }
+.score-tip { font-size: 12px; color: #ef4444 !important; margin-top: 8px; font-weight: 700; }
+.status-tag.active { 
+  background: #eff6ff; color: #165DFF; padding: 2px 8px; 
+  border-radius: 6px; font-size: 11px; font-weight: 700; 
+}
+
+/* 简单的 loading 动画 */
+.loader {
+  border: 3px solid #f1f5f9; border-radius: 50%; border-top: 3px solid #165DFF;
+  width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto 15px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>

@@ -1,13 +1,23 @@
 """
-账号域入口文件 (Account Domain Entry Point) - 最终定稿版
-负责人：wyx
+账号域入口文件
 功能：用户/管理员身份隔离、车主认证、信誉分维护
 """
 import re
+import os 
+from pathlib import Path
+from dotenv import load_dotenv  
+# --- 修改这里 ---
+# 获取当前文件的绝对路径的父目录的父目录，即 backend/ 目录
+base_dir = Path(__file__).resolve().parent.parent 
+dotenv_path = base_dir / '.env'
+
+# 显式加载该路径下的 .env 文件
+load_dotenv(dotenv_path=dotenv_path, override=True)
+# ----------------
 from fastapi import FastAPI, APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
-from .service import AccountService  # 确保 service.py 中已补全 modify_score 方法
+from .service import AccountService 
 
 app = FastAPI(title="手机私家车拼车软件-账号域")
 

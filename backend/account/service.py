@@ -5,11 +5,19 @@ from .account_db import get_db_connection
 class AccountService:
     @staticmethod
     def is_mock():
-        return os.getenv("ACCOUNT_USE_MOCK", "false").lower() == "true"
+        # 读取变量并去掉空格、转小写
+        mock_val = os.getenv("ACCOUNT_USE_MOCK", "false").strip().lower()
+        # 调试信息：启动后在控制台看看这个值到底是什么
+        # print(f"DEBUG: Current MOCK status is: {mock_val}") 
+        return mock_val == "true"
 
     @staticmethod
     def authenticate_user(username, password):
         if AccountService.is_mock():
+            print(f"DEBUG: MOCK模式验证用户 {username}")
+            # --- 关键点：这里必须根据用户名来模拟管理员 ---
+            if username == "admin": 
+                return {"userId": 1, "username": "admin", "role": "admin", "account_status": "active"}
             return {"userId": 999, "username": username, "role": "passenger", "account_status": "active"}
         conn = get_db_connection()
         try:
