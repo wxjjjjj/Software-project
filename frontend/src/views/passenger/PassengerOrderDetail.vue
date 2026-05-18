@@ -126,6 +126,25 @@
           class="cancel-btn"
           @click="handleCancel"
         >取消订单{{ order.status !== 'published' ? '（将扣除信誉分）' : '' }}</van-button>
+
+        <!-- yzr: OPS 聊天/投诉入口 —— 乘客已加入或车主查看时显示（不限 locked） -->
+        <div v-if="showOpsActions" class="yzr-ops-actions">
+          <van-button
+            v-if="!isDriverView && order.status === 'locked'"
+            round block type="primary"
+            @click="$router.push(`/passenger/payment/${orderId}`)"
+          >去支付</van-button>
+          <van-button
+            round plain type="default"
+            @click="$router.push(`/${isDriverView ? 'driver' : 'passenger'}/chat/${orderId}`)"
+            :style="{ marginTop: isDriverView || order.status !== 'locked' ? '0' : '8px' }"
+          >联系{{ isDriverView ? '乘客' : '车主' }}</van-button>
+          <van-button
+            round plain type="default"
+            @click="$router.push(isDriverView ? '/driver/feedback' : '/passenger/feedback')"
+            style="margin-top:8px"
+          >投诉举报</van-button>
+        </div>
       </div>
 
       <div class="ended-wrap" v-if="order.status === 'completed'">
@@ -160,10 +179,10 @@ const statusType  = (s) => STATUS_MAP[s]?.type  || 'default'
 const fmtTime     = (s) => formatTime(s)
 
 const isDriverView = computed(() => route.path.startsWith('/driver/'))
-const isPublisher = computed(() => order.value?.passenger_id === userId)
+const isPublisher = computed(() => String(order.value?.passenger_id || '') === String(userId))
 const passengers = computed(() => order.value?.passengers || [])
 const hasJoined   = computed(() =>
-  isPublisher.value || passengers.value.some((p) => p.passenger_id === userId)
+  isPublisher.value || passengers.value.some((p) => String(p.passenger_id || '') === String(userId))
 )
 const canJoin     = computed(() =>
   !isDriverView.value &&
@@ -172,8 +191,19 @@ const canJoin     = computed(() =>
   !hasJoined.value
 )
 const canCancel = computed(() =>
-  !isDriverView.value && (isPublisher.value || order.value?.owner_id === userId)
+  !isDriverView.value && (isPublisher.value || String(order.value?.owner_id || '') === String(userId))
 )
+
+// yzr: 显示 OPS 聊天/投诉按钮的条件
+const showOpsActions = computed(() => {
+  if (!order.value) return false
+  if (order.value.status === 'cancelled' || order.value.status === 'completed') return false
+  // 车主查看订单详情时（已接单）
+  if (isDriverView.value && (String(order.value.owner_id || '') === String(userId) || order.value.locked_time)) return true
+  // 乘客已加入时
+  if (hasJoined.value) return true
+  return false
+})
 
 function avatarText(id) {
   return String(id || '?').slice(0, 1).toUpperCase()
@@ -322,6 +352,7 @@ async function handleCancel() {
 .cancel-btn { margin-top: 10px; }
 .ended-wrap { padding-top: 20px; }
 .page-loading { display: flex; justify-content: center; padding: 60px 0; }
+.yzr-ops-actions { padding-top: 8px; }                    /* yzr */
 
 .passenger-card {
   background: #fff;

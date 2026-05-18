@@ -159,6 +159,34 @@ async def ops_feedback_root_proxy(request: Request):
     return await _forward(request, OPS_SERVICE_URL)
 
 
+# === yzr: chat proxy ===
+@app.api_route(
+    "/api/chat/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+)
+async def ops_chat_proxy(path: str, request: Request):
+    _ = path
+    return await _forward(request, OPS_SERVICE_URL)
+
+
+# === yzr: complaints proxy ===
+@app.api_route(
+    "/api/complaints/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+)
+async def ops_complaints_sub_proxy(path: str, request: Request):
+    _ = path
+    return await _forward(request, OPS_SERVICE_URL)
+
+
+@app.api_route(
+    "/api/complaints",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+)
+async def ops_complaints_root_proxy(request: Request):
+    return await _forward(request, OPS_SERVICE_URL)
+
+
 @app.api_route(
     "/api/admin/{path:path}",
     methods=["GET", "POST", "PUT", "PATCH", "DELETE"],

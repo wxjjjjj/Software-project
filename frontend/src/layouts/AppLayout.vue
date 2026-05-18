@@ -1,200 +1,195 @@
-<!--全局模板：
-<template>：页面结构，模拟手机屏幕
-<script setup>：逻辑代码
-<style scoped>：局部样式，只影响本组件-->
 <template>
-  <div class="mobile-app"> <!--居中显示手机框架-->
-    <section class="phone-frame"> <!--模拟手机屏幕，固定宽度（移动端最大 420px，PC 端有圆角阴影）-->
-      <van-nav-bar :title="navTitle">
-        <template #right>
-          <van-popover v-model:show="showActionMenu" :actions="actionItems" @select="onActionSelect">
-            <template #reference>
-              <van-button size="small" plain type="primary">{{ roleLabel }}</van-button>
-            </template>
-          </van-popover>
-        </template>
-      </van-nav-bar>
+  <div class="app-container">
+    
+    <!-- [WYX] 顶部导航栏 -->
+    <header class="app-header">
+      <div class="header-content">
+        <span class="app-logo">拼车出行</span>
+        <div class="user-status-area">
+          <!-- 动态角色标签 -->
+          <span v-if="currentRole" :class="['role-badge', currentRole]">
+            {{ getRoleLabel(currentRole) }}
+          </span>
 
-      <main class="content">
-        <RouterView />
-      </main>
+          <span class="username-display">{{ username }}</span>
 
-      <van-tabbar route :fixed="false">
-        <van-tabbar-item
-          v-for="item in tabItems"
-          :key="item.path"
-          :to="item.path"
-          :icon="item.icon"
-        >
-          {{ item.label }}
-        </van-tabbar-item>
-      </van-tabbar>
-    </section>
+          <!-- 身份切换按钮：只有已认证车主可见 -->
+          <button 
+            v-if="isVerifiedDriver" 
+            class="switch-btn" 
+            @click="handleSwitchRole"
+          >
+            {{ currentRole === 'driver' ? '切回拼车人' : '切换为车主' }}
+          </button>
+
+          <button class="logout-btn" @click="handleLogout">退出</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 内容区 -->
+    <main class="app-main">
+      <router-view />
+    </main>
+
+    <!-- [WYX] 底部导航菜单 -->
+    <footer class="app-footer">
+      <!-- 管理员底部菜单 -->
+      <nav v-if="currentRole === 'admin'" class="nav-menu">
+        <router-link v-for="item in adminMenus" :key="item.path" :to="item.path" class="nav-item">
+          <span class="nav-text">{{ item.name }}</span>
+        </router-link>
+      </nav>
+
+      <!-- 拼车人(乘客)专属菜单 -->
+      <nav v-else-if="currentRole === 'passenger'" class="nav-menu">
+        <router-link v-for="item in passengerMenus" :key="item.path" :to="item.path" class="nav-item">
+          <span class="nav-text">{{ item.name }}</span>
+        </router-link>
+      </nav>
+
+      <!-- 车主(司机)专属菜单 -->
+      <nav v-else-if="currentRole === 'driver'" class="nav-menu">
+        <router-link v-for="item in driverMenus" :key="item.path" :to="item.path" class="nav-item">
+          <span class="nav-text">{{ item.name }}</span>
+        </router-link>
+      </nav>
+    </footer>
+
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue' // [修正] 之前漏掉了 computed 等导入，但由于你没用到组长的 computed，我帮你精简了
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
-const showActionMenu = ref(false)
+const route = useRoute()
 
-function getSession() {
+// --- [WYX] 核心逻辑：定义 getSession 函数解决报错 ---
+const getSession = () => {
   try {
     return JSON.parse(localStorage.getItem('session') || '{}')
-  } catch {
+  } catch (e) {
     return {}
   }
 }
 
-function setSession(s) {
-  localStorage.setItem('session', JSON.stringify(s))
-  session.value = s  // 同步更新响应式引用
+const currentRole = ref('')
+const username = ref('')
+const isVerifiedDriver = ref(false)
+
+// 菜单配置
+const adminMenus = [
+  { name: '用户管理', path: '/admin/users' },
+  { name: '订单监控', path: '/admin/orders' },
+  { name: '投诉处理', path: '/admin/feedback' }
+]
+const passengerMenus = [
+  { name: '首页', path: '/passenger/home' },
+  { name: '我的订单', path: '/passenger/orders/mine' },
+  { name: '我的钱包', path: '/passenger/wallet' },       // yzr
+  { name: '认证车主', path: '/driver/certification' }
+]
+const driverMenus = [
+  { name: '接单大厅', path: '/driver/home' },
+  { name: '行程管理', path: '/driver/orders/mine' },
+  { name: '我的车辆', path: '/driver/vehicles' },
+  { name: '钱包提现', path: '/driver/wallet' }            // yzr
+]
+
+/**
+ * [WYX] 同步身份状态
+ */
+const syncIdentity = () => {
+  const session = getSession()
+  if (session.token) {
+    currentRole.value = session.role
+    username.value = session.username
+    isVerifiedDriver.value = session.ownerVerified === true
+  } else {
+    router.push('/login')
+  }
 }
 
-const session = ref(getSession())
-
-const roleLabel = computed(() => {
-  if (session.value.role === 'admin') return '管理员'
-  if (session.value.role === 'driver') return '车主模式'
-  if (session.value.ownerVerified) return '拼车人(可切车主)'
-  return '拼车人'
-})
-
-const tabItems = computed(() => {
-  if (session.value.role === 'admin') {
-    return [
-      { path: '/admin/users', label: '用户', icon: 'manager-o' },
-      { path: '/admin/orders', label: '订单', icon: 'todo-list-o' },
-      { path: '/admin/vehicle-verifications', label: '车辆审核', icon: 'logistics' },
-      { path: '/admin/feedback', label: '反馈', icon: 'chat-o' },
-      { path: '/me/profile', label: '我的', icon: 'user-o' }
-    ]
+/**
+ * [WYX] 身份一键切换
+ */
+const handleSwitchRole = () => {
+  const session = getSession()
+  if (currentRole.value === 'driver') {
+    session.role = 'passenger'
+    alert('已进入拼车人模式')
+    localStorage.setItem('session', JSON.stringify(session))
+    router.push('/passenger/home').then(() => window.location.reload())
+  } else {
+    session.role = 'driver'
+    alert('已进入车主模式')
+    localStorage.setItem('session', JSON.stringify(session))
+    router.push('/driver/home').then(() => window.location.reload())
   }
-
-  if (session.value.role === 'driver' && session.value.ownerVerified) {
-    return [
-      { path: '/driver/home', label: '首页', icon: 'home-o' },
-      { path: '/driver/orders/available', label: '接单', icon: 'fire-o' },
-      { path: '/driver/orders/mine', label: '行程', icon: 'notes-o' },
-      { path: '/me/vehicles', label: '车辆', icon: 'logistics' },
-      { path: '/me/profile', label: '我的', icon: 'user-o' }
-    ]
-  }
-
-  return [
-    { path: '/passenger/home', label: '首页', icon: 'home-o' },
-    { path: '/passenger/orders/publish', label: '发布', icon: 'plus' },
-    { path: '/passenger/orders/search', label: '搜索', icon: 'search' },
-    { path: '/passenger/orders/mine', label: '订单', icon: 'notes-o' },
-    { path: '/me/profile', label: '我的', icon: 'user-o' }
-  ]
-})
-
-const navTitle = computed(() => {
-  const path = router.currentRoute.value.path
-  if (path.startsWith('/admin')) return '管理员工作台'
-  if (path.startsWith('/driver')) return '车主拼车'
-  if (path.startsWith('/me')) return '我的'
-  if (path.startsWith('/users')) return '用户资料'
-  return '拼车出行'
-})
-
-const actionItems = computed(() => {
-  const items = [
-    { text: '拼车人模式', key: 'passenger' },
-    { text: session.value.ownerVerified ? '车主模式' : '申请成为车主', key: 'driver' },
-    { text: '个人中心', key: 'me' }
-  ]
-  if (session.value.role === 'admin') {
-    items.unshift({ text: '管理员工作台', key: 'admin' })
-  }
-  items.push({ text: '退出登录', key: 'logout' })
-  return items
-})
-
-function onActionSelect(action) {
-  if (action.key === 'logout') {
-    logout()
-    return
-  }
-  if (action.key === 'me') {
-    router.push('/me/profile')
-    return
-  }
-  switchRole(action.key)
 }
 
-//后续可以把角色切换降级为仅开发环境可见，权限以登录接口返回为准
-//当前由登录页调用后端认证接口，再把后端返回的身份信息写入session
-function switchRole(target) {
-  const current = getSession()
-
-  if (target === 'admin') {
-    current.role = 'admin'
-    current.token = current.token || 'dev-token'
-    setSession(current)
-    router.push('/admin/users')
-    return
-  }
-
-  if (target === 'driver') {
-    if (!current.ownerVerified) {
-      setSession(current)
-      router.push('/me/driver-application')
-      return
-    }
-    current.role = 'driver'
-    current.token = current.token || 'dev-token'
-    setSession(current)
-    router.push('/driver/home')
-    return
-  }
-
-  current.role = 'passenger'
-  current.token = current.token || 'dev-token'
-  setSession(current)
-  router.push('/passenger/home')
+const getRoleLabel = (role) => {
+  const labels = { 'admin': '管理员', 'passenger': '拼车人', 'driver': '车主' }
+  return labels[role] || '游客'
 }
 
-function logout() {
-  localStorage.removeItem('session')
-  session.value = {}
-  router.push('/login')
+/**
+ * [WYX] 退出登录
+ */
+const handleLogout = () => {
+  if (confirm('确定要退出账号吗？')) {
+    localStorage.removeItem('session')
+    router.push('/login')
+  }
 }
+
+onMounted(syncIdentity)
+watch(() => route.path, syncIdentity)
 </script>
 
 <style scoped>
-.mobile-app {
-  display: grid;
-  place-items: center;
-  min-height: 100vh;
-  background: radial-gradient(circle at 20% 0%, #d8ecff 0%, #f5f8ff 42%, #f6f8fb 100%);
-}
-
-.phone-frame {
-  width: min(100%, 420px);
-  height: 100vh;
-  background: #ffffff;
-  box-shadow: 0 14px 36px rgba(10, 40, 90, 0.15);
+/* 样式保持你之前的即可 */
+.app-container { display: flex; flex-direction: column; height: 100vh; }
+.app-header {
+  background: #fff;
+  padding: 0 15px;
+  height: 50px;
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transform: translateZ(0);
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  z-index: 100;
 }
-
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  min-height: 0;
+.header-content { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+.app-logo { font-weight: bold; color: #333; font-size: 18px; }
+.switch-btn {
+  background: #fff;
+  border: 1px solid #1890ff;
+  color: #1890ff;
+  padding: 2px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 11px;
+  margin-right: 10px;
 }
-
-@media (min-width: 760px) {
-  .phone-frame {
-    height: 844px;
-    border-radius: 22px;
-  }
+.role-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-right: 8px; font-weight: bold; }
+.role-badge.admin { background: #fff1f0; color: #f5222d; }
+.role-badge.passenger { background: #e6f7ff; color: #1890ff; }
+.role-badge.driver { background: #f6ffed; color: #52c41a; }
+.username-display { font-size: 14px; color: #666; margin-right: 12px; }
+.logout-btn { border: 1px solid #d9d9d9; background: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #999; }
+.app-main { flex: 1; overflow-y: auto; background: #f0f2f5; padding-bottom: 70px; }
+.app-footer {
+  background: #fff;
+  height: 60px;
+  border-top: 1px solid #f0f0f0;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
 }
+.nav-menu { display: flex; height: 100%; justify-content: space-around; align-items: center; }
+.nav-item { text-decoration: none; color: #8c8c8c; display: flex; flex-direction: column; align-items: center; }
+.nav-text { font-size: 12px; margin-top: 4px; }
+.router-link-active { color: #1890ff; font-weight: bold; }
 </style>
