@@ -36,6 +36,7 @@ import OwnerFeedback from '../views/owner/OwnerFeedback.vue'//yzr
 import PassengerWallet from '../views/passenger/PassengerWallet.vue'   // yzr
 import ChatRoom from '../views/common/ChatRoom.vue'                     // yzr
 // === end yzr ===
+// 在文件顶部的 import 区域补上这一行
 import OwnerCertification from '../views/owner/OwnerCertification.vue'
 //管理员
 import AdminLogin from '../views/admin/AdminLogin.vue'//wyx
