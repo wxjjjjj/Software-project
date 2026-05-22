@@ -6,10 +6,10 @@
 USE ops_db;
 
 -- 清空已有测试数据（幂等执行）
-DELETE FROM ops_wallet_log;
-DELETE FROM ops_wallet;
-DELETE FROM ops_chat_message;
-DELETE FROM ops_complaint;
+-- DELETE FROM ops_wallet_log;
+-- DELETE FROM ops_wallet;
+-- DELETE FROM ops_chat_message;
+-- DELETE FROM ops_complaint;
 
 -- 钱包：用户1（拼车人）初始300，支付35.50后余额264.50
 --      用户2（车主）  初始300，收款35.50后余额335.50

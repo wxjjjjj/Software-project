@@ -4,6 +4,53 @@ from .account_db import get_db_connection
 from backend.common.config import ACCOUNT_USE_MOCK
 
 class AccountService:
+    MOCK_USERS = {
+        "admin": {
+            "password": "123456",
+            "user": {
+                "userId": 1,
+                "username": "admin",
+                "role": "admin",
+                "account_status": "active",
+                "passenger": {"score": 100, "status": "active"},
+                "driver": {"score": 100, "status": "unapplied"},
+            },
+        },
+        "yxx": {
+            "password": "yxx123",
+            "user": {
+                "userId": 2,
+                "username": "yxx",
+                "role": "driver",
+                "account_status": "active",
+                "passenger": {"score": 100, "status": "active"},
+                "driver": {"score": 100, "status": "approved"},
+            },
+        },
+        "111": {
+            "password": "111111",
+            "user": {
+                "userId": 3,
+                "username": "111",
+                "role": "passenger",
+                "account_status": "active",
+                "passenger": {"score": 100, "status": "active"},
+                "driver": {"score": 100, "status": "unapplied"},
+            },
+        },
+        "driver1": {
+            "password": "driver1",
+            "user": {
+                "userId": 998,
+                "username": "driver1",
+                "role": "driver",
+                "account_status": "active",
+                "passenger": {"score": 100, "status": "active"},
+                "driver": {"score": 100, "status": "approved"},
+            },
+        },
+    }
+
     @staticmethod
     def is_mock():
         # 读取变量并去掉空格、转小写
@@ -19,17 +66,10 @@ class AccountService:
     def authenticate_user(username, password):
         if AccountService.is_mock():
             print(f"DEBUG: MOCK模式验证用户 {username}")
-            # yzr: 多角色测试账号（用于 Ride + OPS 联调）
-            if username == "admin":
-                return {"userId": 1, "username": "admin", "role": "admin", "account_status": "active"}
-            if username == "driver1":
-                return {"userId": 998, "username": "driver1", "role": "driver", "account_status": "active",
-                        "passenger": {"score": 100, "status": "active"},
-                        "driver": {"score": 100, "status": "approved"}}
-            # --- 关键点：这里必须根据用户名来模拟管理员 ---
-            if username == "admin": 
-                return {"userId": 1, "username": "admin", "role": "admin", "account_status": "active"}
-            return {"userId": 999, "username": username, "role": "passenger", "account_status": "active"}
+            mock_user = AccountService.MOCK_USERS.get(username)
+            if not mock_user or mock_user["password"] != password:
+                return None
+            return mock_user["user"].copy()
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:

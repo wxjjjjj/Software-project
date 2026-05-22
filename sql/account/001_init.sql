@@ -3,6 +3,10 @@
 -- 负责人: wyx
 -- ========================================================
 
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS account_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE account_db;
+
 -- 1. 清理旧表 (开发阶段方便重置环境，注意外键顺序)
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS cars;
