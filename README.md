@@ -64,9 +64,9 @@
 ## 👥 Contributors
 
 感谢以下同学为本项目做出的贡献（排名不分先后）：
-- [wxjjjjj](https://github.com/wxjjjjj)
-- [siwuhe](https://github.com/siwuhe)
-- [Zengjin05](https://github.com/Zengjin05)
-- [WDYXG](https://github.com/WDYXG)
-- [Yarathustra](https://github.com/Yarathustra)
+- [wxj](https://github.com/wxjjjjj)
+- [hws](https://github.com/siwuhe)
+- [zj](https://github.com/Zengjin05)
+- [wyx](https://github.com/WDYXG)
+- [yzr](https://github.com/Yarathustra)
 
