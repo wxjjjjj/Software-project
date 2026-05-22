@@ -32,6 +32,8 @@ import OwnerOrderAvailable from '../views/owner/OwnerOrderAvailable.vue'//hws、
 import OwnerOrderMine from '../views/owner/OwnerOrderMine.vue'//hws、zj
 import OwnerWallet from '../views/owner/OwnerWallet.vue'//yzr
 import OwnerFeedback from '../views/owner/OwnerFeedback.vue'//yzr
+// 在文件顶部的 import 区域补上这一行
+import OwnerCertification from '../views/owner/OwnerCertification.vue'
 //管理员
 import AdminLogin from '../views/admin/AdminLogin.vue'//wyx
 import AdminUsers from '../views/admin/AdminUsers.vue'//wyx
@@ -111,10 +113,11 @@ const routes = [
       { path: 'users/:userId', component: UserProfile, meta: { requiresAuth: true, role: 'user' } },
 
       { path: 'driver/home', component: OwnerHome, meta: { requiresAuth: true, role: 'driver' } },
-      { path: 'driver/vehicles/create', redirect: '/me/vehicles/create' },
-      { path: 'driver/vehicles/:vehicleId/edit', redirect: to => `/me/vehicles/${to.params.vehicleId}/edit` },
-      { path: 'driver/vehicles/:vehicleId/verify', redirect: to => `/me/vehicles/${to.params.vehicleId}/verify` },
-      { path: 'driver/vehicles', redirect: '/me/vehicles' },
+      // [WYX 修改] 
+      // 修改前：{ path: 'driver/certification', component: OwnerCertification, meta: { requiresAuth: true, role: 'driver' } },
+      // 修改后：将 role 改为 passenger，因为申请车主是乘客的行为
+      { path: 'driver/certification',component: OwnerCertification,meta: {requiresAuth: true,role: 'passenger' }},// [WYX-NOTE] 允许乘客进入认证页面，否则逻辑死锁
+      { path: 'driver/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/available', component: OwnerOrderAvailable, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/mine', component: OwnerOrderMine, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'driver' } },
