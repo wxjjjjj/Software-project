@@ -1,8 +1,11 @@
 <template>
   <div class="vehicle-review-page">
-    <section class="page-card">
-      <h2>管理员-车辆认证审核</h2>
-      <p class="hint">查看车主提交的认证资料，并执行通过或驳回。</p>
+    <section class="page-card page-hero">
+      <div>
+        <div class="eyebrow">车辆认证</div>
+        <h2>车辆认证审核</h2>
+        <p class="hint">查看车主提交的认证资料，并执行通过或驳回。</p>
+      </div>
 
       <van-tabs v-model:active="activeTab" @change="onTabChange">
         <van-tab title="待审核" name="pending" />
@@ -12,22 +15,29 @@
     </section>
 
     <section class="page-card">
-      <div v-if="loading" class="empty">加载中...</div>
-      <div v-else-if="requests.length === 0" class="empty">当前筛选条件下暂无申请</div>
+      <van-loading v-if="loading" class="page-loading" type="spinner" color="#165DFF" />
+      <van-empty v-else-if="requests.length === 0" description="当前筛选条件下暂无申请" />
 
       <div class="request-list" v-else>
         <article class="request-item" v-for="item in requests" :key="item.id">
-          <div class="row strong">申请 #{{ item.id }} · 车辆ID：{{ item.vehicle_id }}</div>
-          <div class="row">车主用户：{{ item.owner_user_id }}</div>
-          <div class="row">车主姓名：{{ item.owner_name }}</div>
-          <div class="row">身份证号：{{ item.id_no_masked }}</div>
-          <div class="row">驾驶证号：{{ item.driver_license_no }}</div>
-          <div class="row">行驶证号：{{ item.vehicle_license_no }}</div>
-          <div class="row">联系电话：{{ item.contact_phone || '-' }}</div>
-          <div class="row">补充说明：{{ item.remark || '-' }}</div>
-          <div class="row">提交时间：{{ item.created_at || '-' }}</div>
-          <div class="row">当前状态：{{ statusText(item.status) }}</div>
-          <div class="row" v-if="item.review_note">审核备注：{{ item.review_note }}</div>
+          <div class="request-head">
+            <div>
+              <div class="request-title">申请 #{{ item.id }}</div>
+              <div class="request-sub">车辆ID：{{ item.vehicle_id }}</div>
+            </div>
+            <span :class="['status-pill', item.status]">{{ statusText(item.status) }}</span>
+          </div>
+          <div class="info-grid">
+            <div class="info-row"><span>车主用户</span><b>{{ item.owner_user_id }}</b></div>
+            <div class="info-row"><span>车主姓名</span><b>{{ item.owner_name }}</b></div>
+            <div class="info-row"><span>身份证号</span><b>{{ item.id_no_masked }}</b></div>
+            <div class="info-row"><span>驾驶证号</span><b>{{ item.driver_license_no }}</b></div>
+            <div class="info-row"><span>行驶证号</span><b>{{ item.vehicle_license_no }}</b></div>
+            <div class="info-row"><span>联系电话</span><b>{{ item.contact_phone || '-' }}</b></div>
+            <div class="info-row wide"><span>补充说明</span><b>{{ item.remark || '-' }}</b></div>
+            <div class="info-row wide"><span>提交时间</span><b>{{ item.created_at || '-' }}</b></div>
+            <div class="info-row wide" v-if="item.review_note"><span>审核备注</span><b>{{ item.review_note }}</b></div>
+          </div>
 
           <template v-if="item.status === 'pending'">
             <van-field
@@ -139,12 +149,34 @@ async function review(requestId, decision) {
 .vehicle-review-page {
   display: grid;
   gap: 12px;
+  padding: 14px;
+  padding-bottom: 28px;
+}
+
+.page-hero {
+  display: grid;
+  gap: 12px;
+}
+
+.eyebrow {
+  color: #165dff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.1;
+  color: #172033;
 }
 
 .hint {
-  margin: 6px 0 12px;
-  color: #5f6c80;
+  margin: 8px 0 0;
+  color: #52657d;
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .request-list {
@@ -153,32 +185,104 @@ async function review(requestId, decision) {
 }
 
 .request-item {
-  border: 1px solid #e6edf7;
-  border-radius: 8px;
-  padding: 10px;
-  background: #fbfcff;
+  border: 1px solid #dce8ff;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fbfdff;
+  box-shadow: 0 2px 12px rgba(22, 93, 255, .06);
 }
 
-.row {
-  margin-top: 4px;
-  color: #33425c;
+.request-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #edf1f7;
+}
+
+.request-title {
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.request-sub {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.status-pill {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #dce8ff;
+  background: #f0f5ff;
+  color: #165dff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.status-pill.approved {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status-pill.rejected {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.info-row {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.info-row.wide {
+  grid-column: 1 / -1;
+}
+
+.info-row span {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.info-row b {
+  color: #334155;
   font-size: 13px;
-}
-
-.strong {
-  margin-top: 0;
-  font-weight: 600;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .actions {
   margin-top: 10px;
   display: flex;
   gap: 8px;
+  justify-content: flex-end;
 }
 
-.empty {
-  padding: 8px 0;
-  color: #6c7c93;
-  font-size: 13px;
+.page-loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+@media (max-width: 520px) {
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

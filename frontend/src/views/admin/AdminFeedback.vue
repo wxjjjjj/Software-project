@@ -1,84 +1,97 @@
 <template>
-  <div class="page-card">
+  <div class="admin-feedback-page">
+    <section class="page-card page-hero">
+      <div>
+        <div class="eyebrow">运营处理</div>
+        <h2>投诉与提现管理</h2>
+        <p>集中处理用户投诉、钱包提现与运营统计。</p>
+      </div>
+    </section>
+
     <!-- 统计概览 -->
-    <van-row gutter="8" class="stats-row">
-      <van-col span="8"><div class="stat-card">钱包数<br><strong>{{ stats.walletCount }}</strong></div></van-col>
-      <van-col span="8"><div class="stat-card">支付总额<br><strong>¥{{ stats.payAmount }}</strong></div></van-col>
-      <van-col span="8"><div class="stat-card">待处理投诉<br><strong>{{ stats.pending }}</strong></div></van-col>
-    </van-row>
+    <section class="stats-row">
+      <div class="stat-card"><span>钱包数</span><strong>{{ stats.walletCount }}</strong></div>
+      <div class="stat-card"><span>支付总额</span><strong>¥{{ stats.payAmount }}</strong></div>
+      <div class="stat-card"><span>待处理投诉</span><strong>{{ stats.pending }}</strong></div>
+    </section>
 
     <!-- 功能页签：投诉管理 / 提现管理 -->
-    <van-tabs v-model:active="adminTab" @change="onTabChange">
-      <van-tab title="投诉管理">
-        <template #title>投诉管理 <van-tag v-if="stats.pending > 0" type="danger" size="small">{{ stats.pending }}</van-tag></template>
-      </van-tab>
-      <van-tab title="提现管理" />
-    </van-tabs>
+    <section class="page-card content-card">
+      <van-tabs v-model:active="adminTab" @change="onTabChange">
+        <van-tab title="投诉管理">
+          <template #title>投诉管理 <van-tag v-if="stats.pending > 0" type="danger" size="small">{{ stats.pending }}</van-tag></template>
+        </van-tab>
+        <van-tab title="提现管理" />
+      </van-tabs>
 
-    <!-- 投诉管理 -->
-    <template v-if="adminTab === 0">
-    <van-tabs v-model:active="statusFilter" @change="resetList">
-      <van-tab title="全部" :name="-1" />
-      <van-tab title="待处理" :name="0" />
-      <van-tab title="处理中" :name="1" />
-      <van-tab title="已解决" :name="2" />
-      <van-tab title="已驳回" :name="3" />
-    </van-tabs>
+      <!-- 投诉管理 -->
+      <template v-if="adminTab === 0">
+      <van-tabs v-model:active="statusFilter" @change="resetList">
+        <van-tab title="全部" :name="-1" />
+        <van-tab title="待处理" :name="0" />
+        <van-tab title="处理中" :name="1" />
+        <van-tab title="已解决" :name="2" />
+        <van-tab title="已驳回" :name="3" />
+      </van-tabs>
 
-    <!-- 投诉列表 -->
-    <van-list
-      v-model:loading="listLoading"
-      :finished="listFinished"
-      finished-text="没有更多了"
-      @load="loadList"
-    >
-      <van-cell
-        v-for="item in list"
-        :key="item.ticketId"
-        clickable
-        @click="openHandle(item)"
+      <!-- 投诉列表 -->
+      <van-list
+        v-model:loading="listLoading"
+        :finished="listFinished"
+        finished-text="没有更多了"
+        @load="loadList"
       >
-        <template #title>
-          <span>投诉 #{{ item.ticketId }}</span>
-          <van-tag :type="statusTag(item.status)" style="margin-left:8px">{{ statusText(item.status) }}</van-tag>
-        </template>
-        <template #label>
-          <div>投诉人: {{ item.plaintiffId }} | 时间: {{ formatTime(item.createdAt) }}</div>
-          <div>{{ item.detail }}</div>
-          <div v-if="item.adminReply" class="reply-text">回复: {{ item.adminReply }}</div>
-        </template>
-      </van-cell>
-    </van-list>
+        <article
+          v-for="item in list"
+          :key="item.ticketId"
+          class="work-card"
+          @click="openHandle(item)"
+        >
+          <div class="work-head">
+            <div>
+              <div class="work-title">投诉 #{{ item.ticketId }}</div>
+              <div class="work-sub">投诉人：{{ item.plaintiffId }} · {{ formatTime(item.createdAt) }}</div>
+            </div>
+            <van-tag :type="statusTag(item.status)">{{ statusText(item.status) }}</van-tag>
+          </div>
+          <div class="work-detail">{{ item.detail }}</div>
+          <div v-if="item.adminReply" class="reply-text">回复：{{ item.adminReply }}</div>
+        </article>
+      </van-list>
 
-    <van-empty v-if="!listLoading && list.length === 0" description="暂无投诉" />
-    </template>
+      <van-empty v-if="!listLoading && list.length === 0" description="暂无投诉" />
+      </template>
 
-    <!-- 提现管理 -->
-    <template v-if="adminTab === 1">
-    <van-list
-      v-model:loading="wdLoading"
-      :finished="wdFinished"
-      finished-text="没有更多了"
-      @load="loadWithdrawals"
-    >
-      <van-cell
-        v-for="item in withdrawals"
-        :key="item.walletId"
+      <!-- 提现管理 -->
+      <template v-if="adminTab === 1">
+      <van-list
+        v-model:loading="wdLoading"
+        :finished="wdFinished"
+        finished-text="没有更多了"
+        @load="loadWithdrawals"
       >
-        <template #title>
-          <span>用户 #{{ item.userId }}</span>
-        </template>
-        <template #label>
-          <div>余额: ¥{{ item.balance }} | 冻结: ¥{{ item.frozenAmount }}</div>
-        </template>
-        <template #value>
-          <van-button size="mini" type="success" @click="doApprove(item.userId)">通过</van-button>
-          <van-button size="mini" type="danger" @click="doReject(item.userId)">驳回</van-button>
-        </template>
-      </van-cell>
-    </van-list>
-    <van-empty v-if="!wdLoading && withdrawals.length === 0" description="暂无提现申请" />
-    </template>
+        <article
+          v-for="item in withdrawals"
+          :key="item.walletId"
+          class="work-card withdrawal-card"
+        >
+          <div class="work-head">
+            <div>
+              <div class="work-title">用户 #{{ item.userId }}</div>
+              <div class="work-sub">钱包 #{{ item.walletId }}</div>
+            </div>
+            <div class="amount">¥{{ item.balance }}</div>
+          </div>
+          <div class="work-detail">冻结金额：¥{{ item.frozenAmount }}</div>
+          <div class="work-actions">
+            <van-button size="small" type="success" @click="doApprove(item.userId)">通过</van-button>
+            <van-button size="small" type="danger" @click="doReject(item.userId)">驳回</van-button>
+          </div>
+        </article>
+      </van-list>
+      <van-empty v-if="!wdLoading && withdrawals.length === 0" description="暂无提现申请" />
+      </template>
+    </section>
 
     <!-- 投诉处理弹窗 -->
     <van-dialog
@@ -244,14 +257,136 @@ async function doHandle(action) {
 </script>
 
 <style scoped>
-.stats-row { margin-bottom: 12px; }
+.admin-feedback-page {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  padding-bottom: 28px;
+}
+
+.page-hero {
+  padding: 18px 16px;
+}
+
+.eyebrow {
+  color: #165dff;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+p {
+  margin: 8px 0 0;
+  color: #52657d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .stat-card {
-  background: #f5f7fa;
-  border-radius: 8px;
-  padding: 12px 4px;
+  background: #fff;
+  border: 1px solid #dce8ff;
+  border-radius: 14px;
+  padding: 12px 8px;
   text-align: center;
+  box-shadow: 0 2px 12px rgba(22, 93, 255, .06);
+}
+
+.stat-card span {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #172033;
+  font-size: 19px;
+  line-height: 1.1;
+}
+
+.content-card {
+  padding: 8px 12px 14px;
+}
+
+.work-card {
+  padding: 14px;
+  margin-top: 10px;
+  border: 1px solid #dce8ff;
+  border-radius: 14px;
+  background: #fbfdff;
+  box-shadow: 0 2px 12px rgba(22, 93, 255, .06);
+  cursor: pointer;
+}
+
+.work-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.work-title {
+  color: #172033;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.work-sub {
+  margin-top: 4px;
+  color: #94a3b8;
   font-size: 12px;
 }
-.stat-card strong { font-size: 18px; display: block; margin-top: 4px; }
-.reply-text { color: #1989fa; font-size: 12px; margin-top: 4px; }
+
+.work-detail {
+  margin-top: 10px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.reply-text {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f0f5ff;
+  color: #165dff;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.amount {
+  color: #f97316;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.work-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f7;
+}
+
+@media (max-width: 420px) {
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

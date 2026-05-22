@@ -1,17 +1,17 @@
 <template>
-  <div class="admin-login-page">
+  <div class="login-page">
     <div class="login-card">
-      <h2 style="color: #67c23a;">系统管理员登录</h2>
+      <h2>管理员登录</h2>
       <div class="form-item">
         <label>管理员账号</label>
-        <input v-model="form.username" type="text" placeholder="Admin Username" />
+        <input v-model="form.username" type="text" placeholder="请输入管理员账号" />
       </div>
       <div class="form-item">
         <label>密码</label>
-        <input v-model="form.password" type="password" placeholder="Password" />
+        <input v-model="form.password" type="password" placeholder="请输入密码" />
       </div>
-      <button class="login-btn admin-btn" @click="handleAdminLogin" :disabled="loading">
-        {{ loading ? '验证中...' : '进入管理系统' }}
+      <button class="login-btn" @click="handleAdminLogin" :disabled="loading">
+        {{ loading ? '登录中...' : '登录' }}
       </button>
       <div class="footer-links">
         <router-link to="/login">返回普通用户登录</router-link>
@@ -68,11 +68,12 @@ const handleAdminLogin = async () => {
 </script>
 
 <style scoped>
-.admin-login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: #2c3e50; }
-.login-card { background: white; padding: 40px; border-radius: 8px; width: 350px; }
-.admin-btn { background: #67c23a !important; }
-.form-item label { display: block; margin-bottom: 8px; font-weight: bold; }
-.form-item input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-.login-btn { width: 100%; padding: 12px; border: none; border-radius: 4px; color: white; cursor: pointer; }
-.footer-links { margin-top: 20px; text-align: center; font-size: 13px; }
+.login-page { height: 100vh; display: flex; align-items: center; justify-content: center; background: #f0f2f5; }
+.login-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); width: 320px; }
+h2 { text-align: center; margin-bottom: 25px; }
+.form-item { margin-bottom: 15px; }
+.form-item label { display: block; margin-bottom: 5px; font-size: 14px; }
+.form-item input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+.login-btn { width: 100%; padding: 12px; background: #1890ff; color: white; border: none; border-radius: 6px; cursor: pointer; }
+.footer-links { margin-top: 15px; display: flex; justify-content: center; font-size: 13px; }
 </style>

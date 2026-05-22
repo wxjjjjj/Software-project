@@ -143,17 +143,17 @@ onMounted(fetchUsers)
 }
 
 /* 基础框架 */
-.admin-users-container { padding: 20px; background: #f8fafc; min-height: 100vh; padding-bottom: 40px; }
+.admin-users-container { padding: 14px; padding-bottom: 40px; }
 .header-section { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; padding: 0 4px; }
 .title-group h1 { font-size: 20px; font-weight: 800; color: #1e293b; margin: 0 0 4px 0; }
 .subtitle { font-size: 13px; color: #94a3b8; }
 .subtitle b { color: #165DFF; }
 
 /* 刷新按钮 */
-.refresh-btn { 
+.refresh-btn {
   display: flex; align-items: center; gap: 4px;
   padding: 6px 14px; background: #fff; color: #1e293b; 
-  border: 1.5px solid #e2e8f0; border-radius: 20px; 
+  border: 1.5px solid #dce8ff; border-radius: 20px;
   font-size: 13px; font-weight: 700; cursor: pointer;
   transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
@@ -165,9 +165,9 @@ code { font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-rad
 
 /* --- PC端布局样式 --- */
 .pc-table-view { display: block; }
-.table-card { 
-  background: white; border-radius: 16px; overflow: hidden; 
-  box-shadow: 0 4px 20px rgba(22,93,255,.05); border: 1px solid #e2e8f0;
+.table-card {
+  background: white; border-radius: 14px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(22,93,255,.08); border: 1px solid #dce8ff;
 }
 .user-table { width: 100%; border-collapse: collapse; text-align: left; }
 .user-table th { background: #f8fafc; padding: 14px 16px; font-size: 13px; font-weight: 700; color: #64748b; border-bottom: 1px solid #e2e8f0; }
@@ -191,9 +191,9 @@ code { font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-rad
 
 /* --- 移动端布局样式 --- */
 .mobile-list-view { display: none; }
-.user-item-card { 
-  background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px; 
-  box-shadow: 0 2px 12px rgba(22,93,255,.06); border: 1px solid #e2e8f0;
+.user-item-card {
+  background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px;
+  box-shadow: 0 2px 12px rgba(22,93,255,.06); border: 1px solid #dce8ff;
   animation: fadeUp 0.3s ease both;
 }
 .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px; }

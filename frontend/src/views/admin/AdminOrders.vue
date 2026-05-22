@@ -132,12 +132,15 @@ async function forceCancel(o) {
 </script>
 
 <style scoped>
-.admin-orders { padding-bottom: 28px; }
+.admin-orders {
+  padding: 14px;
+  padding-bottom: 28px;
+}
 
 /* 顶部 */
 .admin-header {
   display: flex; justify-content: space-between; align-items: baseline;
-  padding: 4px 2px 10px;
+  padding: 4px 2px 12px;
 }
 .ah-title { font-size: 18px; font-weight: 800; color: #1e293b; }
 .ah-total { font-size: 13px; color: #94a3b8; }
@@ -146,7 +149,7 @@ async function forceCancel(o) {
 /* 搜索框 */
 .search-wrap {
   display: flex; align-items: center; gap: 8px;
-  background: #fff; border: 1.5px solid #e2e8f0;
+  background: #fff; border: 1.5px solid #dce8ff;
   border-radius: 12px; padding: 9px 14px;
   margin-bottom: 10px;
   transition: border-color .15s;
@@ -166,7 +169,7 @@ async function forceCancel(o) {
 }
 .f-chip {
   padding: 5px 12px; border-radius: 20px; font-size: 12px;
-  border: 1.5px solid #e2e8f0; background: #fff; color: #64748b;
+  border: 1.5px solid #dce8ff; background: #fff; color: #64748b;
   cursor: pointer; transition: all .15s; user-select: none;
 }
 .f-chip.active {
@@ -180,9 +183,10 @@ async function forceCancel(o) {
   to   { opacity: 1; transform: translateY(0); }
 }
 .order-card {
-  background: #fff; border-radius: 16px;
+  background: #fff; border-radius: 14px;
   padding: 13px 16px; margin-bottom: 10px;
   box-shadow: 0 2px 12px rgba(22,93,255,.07);
+  border: 1px solid #dce8ff;
   border-left: 3px solid #e2e8f0;
   animation: fadeUp .25s ease both;
 }
