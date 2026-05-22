@@ -96,7 +96,6 @@ const driverMenus = [
   { name: '行程管理', path: '/driver/orders/mine' },
   { name: '我的车辆', path: '/driver/vehicles' },
   { name: '钱包提现', path: '/driver/wallet' }            // yzr
-  { name: '我的车辆', path: '/driver/vehicles' }
 ]
 
 /**

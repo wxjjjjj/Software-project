@@ -1,12 +1,16 @@
 import os
 import traceback
 from .account_db import get_db_connection
+from backend.common.config import ACCOUNT_USE_MOCK
 
 class AccountService:
     @staticmethod
     def is_mock():
         # 读取变量并去掉空格、转小写
-        mock_val = os.getenv("ACCOUNT_USE_MOCK", "false").strip().lower()
+        mock_val = os.getenv("ACCOUNT_USE_MOCK")
+        if mock_val is None:
+            return ACCOUNT_USE_MOCK
+        mock_val = mock_val.strip().lower()
         # 调试信息：启动后在控制台看看这个值到底是什么
         # print(f"DEBUG: Current MOCK status is: {mock_val}") 
         return mock_val == "true"

@@ -1,15 +1,21 @@
-# 启动三个领域服务 + 网关
-# 账号域: 8001
-# 订单车辆域: 8002
-# 交易运营域: 8003
-# 网关: 8000
-
+# Start all backend services through the local conda environment.
+# account: 8001
+# ride: 8002
+# ops: 8003
+# gateway: 8000
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backendDir = Split-Path -Parent $scriptDir
 $projectDir = Split-Path -Parent $backendDir
+$condaActivate = "D:\anaconda3\Scripts\activate.bat"
+$condaEnv = "software"
 
-Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location '$projectDir'; python -m uvicorn backend.account.service:app --reload --port 8001"
-Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location '$projectDir'; python -m uvicorn backend.ride.service:app --reload --port 8002"
-Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location '$projectDir'; python -m uvicorn backend.ops.service:app --reload --port 8003"
-Start-Process powershell -ArgumentList '-NoExit', '-Command', "Set-Location '$projectDir'; python -m uvicorn backend.gateway.main:app --reload --port 8000"
+function Start-ServiceWindow($module, $port) {
+  $command = "call `"$condaActivate`" $condaEnv && cd /d `"$projectDir`" && python -m uvicorn $module --reload --port $port"
+  Start-Process cmd.exe -ArgumentList "/D", "/K", $command
+}
+
+Start-ServiceWindow "backend.account.account_domain:app" 8001
+Start-ServiceWindow "backend.ride.service:app" 8002
+Start-ServiceWindow "backend.ops.service:app" 8003
+Start-ServiceWindow "backend.gateway.main:app" 8000
