@@ -32,6 +32,10 @@ import OwnerOrderAvailable from '../views/owner/OwnerOrderAvailable.vue'//hws、
 import OwnerOrderMine from '../views/owner/OwnerOrderMine.vue'//hws、zj
 import OwnerWallet from '../views/owner/OwnerWallet.vue'//yzr
 import OwnerFeedback from '../views/owner/OwnerFeedback.vue'//yzr
+// === yzr ops pages ===
+import PassengerWallet from '../views/passenger/PassengerWallet.vue'   // yzr
+import ChatRoom from '../views/common/ChatRoom.vue'                     // yzr
+// === end yzr ===
 // 在文件顶部的 import 区域补上这一行
 import OwnerCertification from '../views/owner/OwnerCertification.vue'
 //管理员
@@ -100,6 +104,8 @@ const routes = [
       { path: 'passenger/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/payment/:orderId', component: PassengerPayment, meta: { requiresAuth: true, role: 'passenger' } },
       { path: 'passenger/feedback', component: PassengerFeedback, meta: { requiresAuth: true, role: 'passenger' } },
+      { path: 'passenger/wallet', component: PassengerWallet, meta: { requiresAuth: true, role: 'passenger' } },       // yzr
+      { path: 'passenger/chat/:orderId', component: ChatRoom, meta: { requiresAuth: true, role: 'passenger' } },       // yzr
 
       { path: 'me/profile', component: MeProfile, meta: { requiresAuth: true, role: 'user' } },
       { path: 'me/driver-application', component: MeDriverApplication, meta: { requiresAuth: true, role: 'user' } },
@@ -123,6 +129,7 @@ const routes = [
       { path: 'driver/orders/:id', component: PassengerOrderDetail, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/wallet', component: OwnerWallet, meta: { requiresAuth: true, role: 'driver' } },
       { path: 'driver/feedback', component: OwnerFeedback, meta: { requiresAuth: true, role: 'driver' } },
+      { path: 'driver/chat/:orderId', component: ChatRoom, meta: { requiresAuth: true, role: 'driver' } },              // yzr
 
       { path: 'admin/users', component: AdminUsers, meta: { requiresAuth: true, role: 'admin' } },
       { path: 'admin/orders', component: AdminOrders, meta: { requiresAuth: true, role: 'admin' } },
@@ -143,7 +150,8 @@ const routes = [
       { path: 'owner/orders/available', redirect: '/driver/orders/available' },
       { path: 'owner/orders/mine', redirect: '/driver/orders/mine' },
       { path: 'owner/wallet', redirect: '/driver/wallet' },
-      { path: 'owner/feedback', redirect: '/driver/feedback' }
+      { path: 'owner/feedback', redirect: '/driver/feedback' },
+      { path: 'owner/chat/:orderId', redirect: to => `/driver/chat/${to.params.orderId}` },  // yzr
     ]
   },
   {

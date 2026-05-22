@@ -88,11 +88,14 @@ const adminMenus = [
 const passengerMenus = [
   { name: '首页', path: '/passenger/home' },
   { name: '我的订单', path: '/passenger/orders/mine' },
+  { name: '我的钱包', path: '/passenger/wallet' },       // yzr
   { name: '认证车主', path: '/driver/certification' }
 ]
 const driverMenus = [
   { name: '接单大厅', path: '/driver/home' },
   { name: '行程管理', path: '/driver/orders/mine' },
+  { name: '我的车辆', path: '/driver/vehicles' },
+  { name: '钱包提现', path: '/driver/wallet' }            // yzr
   { name: '我的车辆', path: '/driver/vehicles' }
 ]
 

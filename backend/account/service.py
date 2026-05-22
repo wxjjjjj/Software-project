@@ -15,6 +15,13 @@ class AccountService:
     def authenticate_user(username, password):
         if AccountService.is_mock():
             print(f"DEBUG: MOCK模式验证用户 {username}")
+            # yzr: 多角色测试账号（用于 Ride + OPS 联调）
+            if username == "admin":
+                return {"userId": 1, "username": "admin", "role": "admin", "account_status": "active"}
+            if username == "driver1":
+                return {"userId": 998, "username": "driver1", "role": "driver", "account_status": "active",
+                        "passenger": {"score": 100, "status": "active"},
+                        "driver": {"score": 100, "status": "approved"}}
             # --- 关键点：这里必须根据用户名来模拟管理员 ---
             if username == "admin": 
                 return {"userId": 1, "username": "admin", "role": "admin", "account_status": "active"}
