@@ -53,14 +53,14 @@
 
       <div class="vehicle-list" v-else>
         <article
+          v-for="item in vehicles"
+          :key="item.vehicleId"
           class="vehicle-item"
           :class="{
             'v-verified': item.verified,
             'v-pending': !item.verified,
             'v-disabled': item.status === 'disabled'
           }"
-          v-for="item in vehicles"
-          :key="item.vehicleId"
         >
           <div class="item-main">
             <div class="title-row">
@@ -116,18 +116,18 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { showNotify, showConfirmDialog } from 'vant'
+import { showConfirmDialog, showNotify } from 'vant'
 import {
   deleteOwnerVehicle,
   fetchOwnerVehicles,
   updateOwnerVehicleStatus
 } from '../../api/ride'
 
-// 页面状态：列表与加载态。
 const vehicles = ref([])
 const loading = ref(false)
 const showVerifySheet = ref(false)
 const router = useRouter()
+
 const totalCount = computed(() => vehicles.value.length)
 const verifiedCount = computed(() => vehicles.value.filter((item) => item.verified).length)
 const pendingCount = computed(() => totalCount.value - verifiedCount.value)
@@ -137,13 +137,11 @@ const verifySheetActions = computed(() => pendingVehicles.value.map((item) => ({
   vehicleId: item.vehicleId
 })))
 
-// 页面进入时先拉取车辆列表。
 onMounted(() => {
   refreshVehicles()
 })
 
 function normalizeVerified(value) {
-  // 避免把字符串 "0" / "false" 当成真值，导致前端误显示已认证。
   if (typeof value === 'boolean') {
     return value
   }
@@ -163,7 +161,6 @@ function normalizeVerified(value) {
 }
 
 function normalizeVehicle(item) {
-  // 兼容后端字段差异，统一成页面使用的数据结构。
   return {
     vehicleId: item.vehicleId ?? item.vehicle_id ?? item.id,
     plateNo: String(item.plateNo ?? item.plate_no ?? '').toUpperCase(),
@@ -176,7 +173,6 @@ function normalizeVehicle(item) {
 }
 
 async function refreshVehicles() {
-  // 拉取最新数据；后端会根据开关决定走 Mock 还是数据库。
   loading.value = true
   try {
     const data = await fetchOwnerVehicles()
@@ -226,7 +222,6 @@ function goVerify(vehicleId) {
 }
 
 async function toggleStatus(item) {
-  // 车辆状态在可用和停用之间切换。
   const nextStatus = item.status === 'available' ? 'disabled' : 'available'
   try {
     await updateOwnerVehicleStatus(item.vehicleId, nextStatus)
@@ -239,7 +234,6 @@ async function toggleStatus(item) {
 
 async function removeVehicle(id) {
   try {
-    // 删除前确认，防止误操作。
     await showConfirmDialog({
       title: '删除车辆',
       message: '删除后无法恢复，是否继续？'
@@ -263,7 +257,6 @@ async function removeVehicle(id) {
   padding-bottom: 24px;
 }
 
-/* 统计横幅 */
 .stat-banner {
   display: flex;
   align-items: center;
@@ -327,7 +320,6 @@ async function removeVehicle(id) {
   }
 }
 
-/* 快捷入口 */
 .quick-actions {
   display: flex;
   flex-direction: column;
@@ -396,7 +388,6 @@ async function removeVehicle(id) {
   margin-left: 6px;
 }
 
-/* 段落标签 */
 .section-label {
   display: flex;
   align-items: center;
@@ -518,4 +509,3 @@ async function removeVehicle(id) {
   }
 }
 </style>
-

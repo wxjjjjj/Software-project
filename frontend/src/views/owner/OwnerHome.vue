@@ -33,6 +33,14 @@
         </div>
         <span class="qa-arrow">›</span>
       </router-link>
+      <router-link to="/driver/wallet" class="qa-card qa-wallet">
+        <div class="qa-icon">💰</div>
+        <div class="qa-info">
+          <div class="qa-title">钱包提现</div>
+          <div class="qa-sub">查看余额与提现记录</div>
+        </div>
+        <span class="qa-arrow">›</span>
+      </router-link>
     </div>
 
     <!-- 最近接单 -->
@@ -139,6 +147,7 @@ onMounted(async () => {
 .qa-card:active { transform: scale(.97); }
 .qa-fire  { background: #fff7ed; }
 .qa-notes { background: #f0fdf4; }
+.qa-wallet { background: #eff6ff; }
 .qa-icon  { font-size: 24px; }
 .qa-title { font-size: 14px; font-weight: 700; color: #1e293b; }
 .qa-sub   { font-size: 11px; color: #94a3b8; margin-top: 2px; }

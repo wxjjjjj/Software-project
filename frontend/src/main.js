@@ -7,7 +7,10 @@ import router from './router'//#路由配置--实现多页面切换
 import 'vant/lib/index.css'
 import './style.css'//#自己写的全局样式，对vant样式做补充，如果vant（移动端UI）够了可以不要
 
-setToastDefaultOptions({ className: 'phone-toast' })
+setToastDefaultOptions({
+  className: 'phone-toast',
+  position: 'middle',
+})
 setNotifyDefaultOptions({ className: 'phone-notify' })
 
 createApp(App).use(router).use(Vant).mount('#app')

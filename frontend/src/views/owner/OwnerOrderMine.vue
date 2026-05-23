@@ -41,6 +41,7 @@
           <!-- 锁单操作 -->
           <div class="card-action">
             <button class="btn-detail" @click="goDetail(o)">详情</button>
+            <button v-if="o.status !== 'cancelled' && o.status !== 'completed'" class="btn-chat" @click="goChat(o)">💬 聊天</button>
             <button v-if="o.status === 'locked'" class="btn-complete" @click="handleComplete(o)">✓ 标记完成</button>
             <button v-if="o.status === 'locked'" class="btn-cancel"   @click="handleCancel(o)">取消接单</button>
           </div>
@@ -73,6 +74,10 @@ onMounted(() => loadOrders())
 
 function goDetail(o) {
   router.push(`/driver/orders/${o.order_id}`)
+}
+
+function goChat(o) {
+  router.push(`/driver/chat/${o.order_id}`)
 }
 
 async function loadOrders() {
@@ -172,12 +177,12 @@ async function handleCancel(o) {
   margin-top: 10px; padding-top: 10px;
   border-top: 1px solid #f1f5f9;
 }
-.btn-detail, .btn-complete, .btn-cancel {
+.btn-detail, .btn-complete, .btn-cancel, .btn-chat {
   padding: 6px 14px; border-radius: 20px; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: opacity .15s, transform .15s;
 }
-.btn-detail:active, .btn-complete:active, .btn-cancel:active { transform: scale(.95); }
+.btn-detail:active, .btn-complete:active, .btn-cancel:active, .btn-chat:active { transform: scale(.95); }
 .btn-detail {
   background: #fff; color: #165DFF;
   border: 1.5px solid #c7d7ff;
@@ -189,6 +194,10 @@ async function handleCancel(o) {
 .btn-cancel {
   background: transparent; color: #ef4444;
   border: 1.5px solid #fca5a5;
+}
+.btn-chat {
+  background: #fff; color: #8b5cf6;
+  border: 1.5px solid #c4b5fd;
 }
 .page-loading { display: flex; justify-content: center; padding: 40px 0; }
 </style>

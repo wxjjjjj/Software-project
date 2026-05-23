@@ -3,9 +3,8 @@
     <section class="page-card">
       <div class="eyebrow">用户资料</div>
       <h2>用户 {{ userId }}</h2>
-      <p>这里用于从订单详情、接单车主、发单乘客入口查看对方资料。</p>
+      <p>{{ profileHint }}</p>
       <div class="actions">
-        <van-button type="primary" block @click="openMessage">联系对方</van-button>
         <van-button plain type="warning" block to="/me/feedback">投诉 / 反馈</van-button>
       </div>
     </section>
@@ -14,15 +13,26 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const router = useRouter()
-const userId = computed(() => route.params.userId)
 
-function openMessage() {
-  router.push(`/me/messages?userId=${encodeURIComponent(userId.value)}`)
-}
+const userId = computed(() => String(route.params.userId || ''))
+const orderId = computed(() => String(route.query.orderId || ''))
+const targetRole = computed(() => {
+  const value = String(route.query.target || '').toLowerCase()
+  if (value === 'driver') return 'driver'
+  if (value === 'passenger') return 'passenger'
+  return 'user'
+})
+
+const profileHint = computed(() => {
+  if (orderId.value) {
+    const targetName = targetRole.value === 'driver' ? '接单车主' : '同行乘客'
+    return `这里用于查看 ${targetName} 的资料。如需聊天，请返回订单页面进入订单聊天。`
+  }
+  return '这里用于查看对方资料。如需联系，请从对应订单页面进入聊天。'
+})
 </script>
 
 <style scoped>
