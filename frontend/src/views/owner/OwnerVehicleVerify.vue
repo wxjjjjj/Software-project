@@ -5,14 +5,28 @@
       <p class="hint">请填写真实信息，管理员审核通过后车辆将显示为已认证。</p>
 
       <van-form @submit="onSubmit" class="verify-form">
+        <van-notice-bar
+          v-if="currentVehiclePending"
+          class="pending-notice"
+          type="warning"
+          text="该车辆认证正在审核，暂时不能重复提交。"
+        />
+
         <van-field
-          v-model.number="form.vehicleId"
+          v-model.trim="form.vehicleId"
           name="vehicleId"
           label="车辆ID"
-          type="digit"
           placeholder="请输入需要认证的车辆ID"
           :readonly="readonlyVehicleId"
           :rules="[{ validator: vehicleIdValidator, message: '请输入合法车辆ID' }]"
+        />
+
+        <van-field
+          :model-value="displayPlateNo"
+          name="plateNo"
+          label="车牌号"
+          placeholder="将根据车辆ID自动读取"
+          readonly
         />
 
         <van-field
@@ -67,8 +81,14 @@
           placeholder="可填写车辆用途等补充信息"
         />
 
-        <van-button type="primary" native-type="submit" block :loading="submitting">
-          提交认证申请
+        <van-button
+          type="primary"
+          native-type="submit"
+          block
+          :loading="submitting"
+          :disabled="currentVehiclePending"
+        >
+          {{ currentVehiclePending ? '该车辆认证正在审核' : '提交认证申请' }}
         </van-button>
 
         <van-button plain type="default" block @click="goBackToVehicles">
@@ -80,24 +100,21 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showNotify } from 'vant'
-import { submitVehicleVerifyRequest } from '../../api/ride'
+import { fetchOwnerVehicles, submitVehicleVerifyRequest } from '../../api/ride'
 
 const route = useRoute()
 const router = useRouter()
 const submitting = ref(false)
+const vehicles = ref([])
 
-const routeVehicleId = computed(() => {
-  const id = Number(route.params.vehicleId)
-  return Number.isInteger(id) && id > 0 ? id : null
-})
-
-const readonlyVehicleId = computed(() => routeVehicleId.value !== null)
+const routeVehicleId = computed(() => String(route.params.vehicleId || '').trim())
+const readonlyVehicleId = computed(() => routeVehicleId.value.length > 0)
 
 const form = reactive({
-  vehicleId: routeVehicleId.value ?? null,
+  vehicleId: routeVehicleId.value,
   owner_name: '',
   id_no: '',
   driver_license_no: '',
@@ -106,15 +123,61 @@ const form = reactive({
   remark: ''
 })
 
+const currentVehicle = computed(() => {
+  const currentId = String(form.vehicleId || '').trim()
+  return vehicles.value.find((item) => String(item.vehicleId) === currentId) || null
+})
+
+const currentVehiclePending = computed(() => currentVehicle.value?.verifyStatus === 'pending')
+const displayPlateNo = computed(() => currentVehicle.value?.plateNo || '')
+
+function normalizeVerified(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    const text = value.trim().toLowerCase()
+    if (['1', 'true', 'yes', 'y', 'on'].includes(text)) return true
+    if (['0', 'false', 'no', 'n', 'off', ''].includes(text)) return false
+  }
+  return Boolean(value)
+}
+
+function normalizeVehicle(item) {
+  return {
+    vehicleId: String(item.vehicleId ?? item.vehicle_id ?? item.id ?? ''),
+    plateNo: String(item.plateNo ?? item.plate_no ?? '').toUpperCase(),
+    verified: normalizeVerified(item.verified),
+    verifyStatus: String(item.verifyStatus ?? item.verify_status ?? '').toLowerCase()
+  }
+}
+
+async function loadVehicles() {
+  try {
+    const data = await fetchOwnerVehicles()
+    const rawItems = Array.isArray(data.items)
+      ? data.items
+      : Array.isArray(data.vehicles)
+        ? data.vehicles
+        : []
+    vehicles.value = rawItems.map(normalizeVehicle)
+  } catch {
+    vehicles.value = []
+  }
+}
+
 function vehicleIdValidator(value) {
-  const num = Number(value)
-  return Number.isInteger(num) && num > 0
+  return String(value || '').trim().length > 0
 }
 
 async function onSubmit() {
-  const vehicleId = Number(form.vehicleId)
+  const vehicleId = String(form.vehicleId || '').trim()
   if (!vehicleIdValidator(vehicleId)) {
     showNotify({ type: 'warning', message: '请输入合法车辆ID' })
+    return
+  }
+
+  if (currentVehiclePending.value) {
+    showNotify({ type: 'warning', message: '该车辆认证正在审核' })
     return
   }
 
@@ -144,6 +207,8 @@ async function onSubmit() {
 function goBackToVehicles() {
   router.push('/me/vehicles')
 }
+
+onMounted(loadVehicles)
 </script>
 
 <style scoped>
@@ -161,5 +226,11 @@ function goBackToVehicles() {
 .verify-form {
   display: grid;
   gap: 8px;
+}
+
+.pending-notice {
+  margin-bottom: 2px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 </style>
