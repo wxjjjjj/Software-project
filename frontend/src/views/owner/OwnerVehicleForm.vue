@@ -2,14 +2,16 @@
   <div class="vehicle-form-page">
     <section class="page-card">
       <h2>{{ isEditing ? '车主-编辑车辆信息' : '车主-新增车辆' }}</h2>
-      <p class="hint">{{ isEditing ? '修改车辆信息后保存，便于接单时快速选择。' : '请填写车辆基础信息，提交后可在车辆主页继续管理。' }}</p>
+      <p class="hint">
+        {{ isEditing ? '修改车辆信息后保存，便于接单时快速选择。' : '请填写车辆基础信息，提交后可在车辆主页继续管理。' }}
+      </p>
 
       <van-form @submit="onSubmit" class="vehicle-form">
         <van-field
           v-model.trim="form.plateNo"
           name="plateNo"
           label="车牌号"
-          placeholder="例如：沪A12345"
+          placeholder="例如：粤A12345"
           :rules="[{ required: true, message: '请输入车牌号' }]"
         />
 
@@ -102,10 +104,17 @@ function resolveOwnerUserId() {
   return 'dev-user-1'
 }
 
+function normalizePlateNoInput(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s\-·•.]/g, '')
+}
+
 function normalizeVehicle(item) {
   return {
     vehicleId: item.vehicleId ?? item.vehicle_id ?? item.id,
-    plateNo: String(item.plateNo ?? item.plate_no ?? '').toUpperCase(),
+    plateNo: normalizePlateNoInput(item.plateNo ?? item.plate_no ?? ''),
     brand: String(item.brand ?? ''),
     color: String(item.color ?? ''),
     seatCapacity: Number(item.seatCapacity ?? item.seat_capacity ?? 4)
@@ -153,6 +162,15 @@ function vehicleErrorMessage(error) {
   if (message.includes('plate_no already exists')) {
     return '车牌号已存在，请换一个未登记的车牌号'
   }
+  if (message.includes('plate_no format is invalid')) {
+    return '车牌号格式不正确，请填写类似“粤A12345”或“粤A·12345”的格式'
+  }
+  if (message.includes('plate_no cannot be empty')) {
+    return '请输入车牌号'
+  }
+  if (message.includes('seat_capacity must be between 2 and 9')) {
+    return '座位数请输入 2-9 之间的整数'
+  }
   return message || '保存失败'
 }
 
@@ -162,14 +180,14 @@ async function onSubmit() {
   }
 
   const payload = {
-    plate_no: form.plateNo.toUpperCase(),
-    brand: form.brand,
-    color: form.color,
+    plate_no: normalizePlateNoInput(form.plateNo),
+    brand: String(form.brand || '').trim(),
+    color: String(form.color || '').trim(),
     seat_capacity: Number(form.seatCapacity)
   }
 
   const duplicate = vehicles.value.some(
-    (item) => item.plateNo === payload.plate_no && item.vehicleId !== editVehicleId.value
+    (item) => normalizePlateNoInput(item.plateNo) === payload.plate_no && item.vehicleId !== editVehicleId.value
   )
   if (duplicate) {
     showNotify({ type: 'warning', message: '车牌号已存在' })
@@ -190,11 +208,7 @@ async function onSubmit() {
     }
     router.push('/me/vehicles')
   } catch (error) {
-    if ((error?.message || '').includes('plate_no already exists')) {
-      showNotify({ type: 'danger', message: vehicleErrorMessage(error) })
-      return
-    }
-    showNotify({ type: 'danger', message: error.message || '保存失败' })
+    showNotify({ type: 'danger', message: vehicleErrorMessage(error) })
   } finally {
     submitting.value = false
   }

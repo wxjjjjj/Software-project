@@ -14,6 +14,7 @@
   9.  POST   /api/orders/{id}/complete 标记完成（域3回调）
   10. GET    /api/orders/all          管理员查看全部订单（alias → list_orders 无参数）
 """
+import re
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -256,6 +257,9 @@ _VEHICLE_VERIFY_REQUESTS: dict = {}
 
 ALLOWED_VEHICLE_STATUS = {"available", "disabled"}
 ALLOWED_VERIFY_REQUEST_STATUS = {"pending", "approved", "rejected"}
+PLATE_NO_PATTERN = re.compile(
+    r"^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-HJ-NP-Z0-9]{5,6}$"
+)
 
 
 # ── Mock Helpers ──────────────────────────────────────────────────────────────
@@ -357,9 +361,17 @@ def _db_format(row: dict, tags: List[str]) -> dict:
 
 
 def _normalize_plate_no(plate_no: str) -> str:
+    plate_no_pattern = re.compile(
+        "^[\u4EAC\u6D25\u6CAA\u6E1D\u5180\u8C6B\u4E91\u8FBD\u9ED1\u6E58\u7696\u9C81"
+        "\u65B0\u82CF\u6D59\u8D63\u9102\u6842\u7518\u664B\u8499\u9655\u5409\u95FD\u8D35"
+        "\u7CA4\u9752\u85CF\u5DDD\u5B81\u743C\u4F7F\u9886][A-Z][A-HJ-NP-Z0-9]{5,6}$"
+    )
     normalized = (plate_no or "").strip().upper()
+    normalized = re.sub(r"[\s\-·•.]", "", normalized)
     if not normalized:
         raise HTTPException(status_code=400, detail="plate_no cannot be empty")
+    if not plate_no_pattern.fullmatch(normalized):
+        raise HTTPException(status_code=400, detail="plate_no format is invalid")
     return normalized
 
 
@@ -386,6 +398,8 @@ def _as_bool(value) -> bool:
 
 
 def _format_vehicle(row: dict) -> dict:
+    verified = _as_bool(row.get("verified", False))
+    verify_status = row.get("verify_status") or ("approved" if verified else "unsubmitted")
     return {
         "vehicle_id": str(row["vehicle_id"]),
         "owner_id": str(row["owner_id"]),
@@ -393,7 +407,8 @@ def _format_vehicle(row: dict) -> dict:
         "brand": row.get("brand") or "",
         "color": row.get("color") or "",
         "seat_capacity": int(row["seat_capacity"]),
-        "verified": _as_bool(row.get("verified", False)),
+        "verified": verified,
+        "verify_status": verify_status,
         "status": row["status"],
     }
 
@@ -929,11 +944,20 @@ def list_vehicles(owner_id: str) -> dict:
             with get_ride_conn() as conn:
                 with conn.cursor() as cursor:
                     cursor.execute(
-                        """SELECT id AS vehicle_id, owner_user_id AS owner_id,
-                                  plate_no, brand, color, seat_capacity, verified, status
-                           FROM vehicle
-                           WHERE owner_user_id = %s
-                           ORDER BY created_at DESC""",
+                        """SELECT v.id AS vehicle_id, v.owner_user_id AS owner_id,
+                                  v.plate_no, v.brand, v.color, v.seat_capacity,
+                                  v.verified, v.status,
+                                  CASE
+                                    WHEN v.verified=1 THEN 'approved'
+                                    WHEN EXISTS (
+                                      SELECT 1 FROM vehicle_verify_request r
+                                      WHERE r.vehicle_id=v.id AND r.status='pending'
+                                    ) THEN 'pending'
+                                    ELSE 'unsubmitted'
+                                  END AS verify_status
+                           FROM vehicle v
+                           WHERE v.owner_user_id = %s
+                           ORDER BY v.created_at DESC""",
                         (owner_id,),
                     )
                     rows = cursor.fetchall()
@@ -941,7 +965,21 @@ def list_vehicles(owner_id: str) -> dict:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"db error: {exc}") from exc
 
-    vehicles = [dict(v) for v in _VEHICLES.values() if v["owner_id"] == owner_id]
+    vehicles = []
+    for vehicle in _VEHICLES.values():
+        if vehicle["owner_id"] != owner_id:
+            continue
+        item = dict(vehicle)
+        has_pending_request = any(
+            req["vehicle_id"] == vehicle["vehicle_id"] and req["status"] == "pending"
+            for req in _VEHICLE_VERIFY_REQUESTS.values()
+        )
+        item["verify_status"] = (
+            "approved"
+            if _as_bool(item.get("verified", False))
+            else "pending" if has_pending_request else "unsubmitted"
+        )
+        vehicles.append(item)
     return {"items": vehicles}
 
 
@@ -998,7 +1036,11 @@ def create_vehicle(payload: VehicleCreateRequest, owner_id: Optional[str] = None
     return {"message": "vehicle created", "vehicle_id": vehicle_id, "status": "available"}
 
 
-def update_vehicle(vehicle_id: str, payload: VehicleUpdateRequest) -> dict:
+def update_vehicle(
+    vehicle_id: str,
+    payload: VehicleUpdateRequest,
+    owner_id: Optional[str] = None,
+) -> dict:
     has_changes = any(
         value is not None
         for value in (payload.plate_no, payload.brand, payload.color, payload.seat_capacity)
@@ -1023,6 +1065,8 @@ def update_vehicle(vehicle_id: str, payload: VehicleUpdateRequest) -> dict:
                     existing = cursor.fetchone()
                     if not existing:
                         raise HTTPException(status_code=404, detail="vehicle not found")
+                    if owner_id is not None and str(existing["owner_id"]) != str(owner_id):
+                        raise HTTPException(status_code=403, detail="no permission for this vehicle")
                     if normalized_plate and normalized_plate != existing["plate_no"]:
                         cursor.execute("SELECT id FROM vehicle WHERE plate_no=%s", (normalized_plate,))
                         if cursor.fetchone():
@@ -1060,6 +1104,8 @@ def update_vehicle(vehicle_id: str, payload: VehicleUpdateRequest) -> dict:
     vehicle = _VEHICLES.get(vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="vehicle not found")
+    if owner_id is not None and str(vehicle["owner_id"]) != str(owner_id):
+        raise HTTPException(status_code=403, detail="no permission for this vehicle")
     if normalized_plate and normalized_plate != vehicle["plate_no"]:
         duplicate = any(
             v["plate_no"] == normalized_plate and v["vehicle_id"] != vehicle_id
@@ -1077,7 +1123,11 @@ def update_vehicle(vehicle_id: str, payload: VehicleUpdateRequest) -> dict:
     return {"message": "vehicle updated", "vehicle": dict(vehicle)}
 
 
-def update_vehicle_status(vehicle_id: str, payload: VehicleStatusUpdateRequest) -> dict:
+def update_vehicle_status(
+    vehicle_id: str,
+    payload: VehicleStatusUpdateRequest,
+    owner_id: Optional[str] = None,
+) -> dict:
     next_status = (payload.status or "").strip().lower()
     if next_status not in ALLOWED_VEHICLE_STATUS:
         raise HTTPException(status_code=400, detail="status must be one of: available, disabled")
@@ -1086,9 +1136,15 @@ def update_vehicle_status(vehicle_id: str, payload: VehicleStatusUpdateRequest) 
         try:
             with get_ride_conn() as conn:
                 with conn.cursor() as cursor:
-                    cursor.execute("SELECT id FROM vehicle WHERE id=%s", (vehicle_id,))
-                    if not cursor.fetchone():
+                    cursor.execute(
+                        "SELECT id, owner_user_id AS owner_id FROM vehicle WHERE id=%s",
+                        (vehicle_id,),
+                    )
+                    vehicle = cursor.fetchone()
+                    if not vehicle:
                         raise HTTPException(status_code=404, detail="vehicle not found")
+                    if owner_id is not None and str(vehicle["owner_id"]) != str(owner_id):
+                        raise HTTPException(status_code=403, detail="no permission for this vehicle")
                     cursor.execute("UPDATE vehicle SET status=%s WHERE id=%s", (next_status, vehicle_id))
                     return {
                         "message": "vehicle status updated",
@@ -1103,6 +1159,8 @@ def update_vehicle_status(vehicle_id: str, payload: VehicleStatusUpdateRequest) 
     vehicle = _VEHICLES.get(vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="vehicle not found")
+    if owner_id is not None and str(vehicle["owner_id"]) != str(owner_id):
+        raise HTTPException(status_code=403, detail="no permission for this vehicle")
     vehicle["status"] = next_status
     return {"message": "vehicle status updated", "vehicle_id": vehicle_id, "status": next_status}
 
@@ -1345,14 +1403,20 @@ def review_vehicle_verify_request(
     return {"message": "vehicle verification request reviewed", "request_id": request_id, "decision": decision}
 
 
-def delete_vehicle(vehicle_id: str) -> dict:
+def delete_vehicle(vehicle_id: str, owner_id: Optional[str] = None) -> dict:
     if not RIDE_USE_MOCK:
         try:
             with get_ride_conn() as conn:
                 with conn.cursor() as cursor:
-                    cursor.execute("SELECT id FROM vehicle WHERE id=%s", (vehicle_id,))
-                    if not cursor.fetchone():
+                    cursor.execute(
+                        "SELECT id, owner_user_id AS owner_id FROM vehicle WHERE id=%s",
+                        (vehicle_id,),
+                    )
+                    vehicle = cursor.fetchone()
+                    if not vehicle:
                         raise HTTPException(status_code=404, detail="vehicle not found")
+                    if owner_id is not None and str(vehicle["owner_id"]) != str(owner_id):
+                        raise HTTPException(status_code=403, detail="no permission for this vehicle")
                     cursor.execute("DELETE FROM vehicle WHERE id=%s", (vehicle_id,))
                     return {"message": "vehicle deleted", "vehicle_id": vehicle_id}
         except HTTPException:
@@ -1362,5 +1426,7 @@ def delete_vehicle(vehicle_id: str) -> dict:
 
     if vehicle_id not in _VEHICLES:
         raise HTTPException(status_code=404, detail="vehicle not found")
+    if owner_id is not None and str(_VEHICLES[vehicle_id]["owner_id"]) != str(owner_id):
+        raise HTTPException(status_code=403, detail="no permission for this vehicle")
     del _VEHICLES[vehicle_id]
     return {"message": "vehicle deleted", "vehicle_id": vehicle_id}

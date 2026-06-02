@@ -41,7 +41,7 @@
           <!-- 锁单操作 -->
           <div class="card-action">
             <button class="btn-detail" @click="goDetail(o)">详情</button>
-            <button v-if="o.status !== 'cancelled' && o.status !== 'completed'" class="btn-chat" @click="goChat(o)">💬 聊天</button>
+            <button v-if="o.status !== 'cancelled' && o.status !== 'completed'" class="btn-chat" @click="goChat(o)">💬 聊天</button>    <!-- yzr -->
             <button v-if="o.status === 'locked'" class="btn-complete" @click="handleComplete(o)">✓ 标记完成</button>
             <button v-if="o.status === 'locked'" class="btn-cancel"   @click="handleCancel(o)">取消接单</button>
           </div>
@@ -76,6 +76,7 @@ function goDetail(o) {
   router.push(`/driver/orders/${o.order_id}`)
 }
 
+// yzr: 跳转聊天
 function goChat(o) {
   router.push(`/driver/chat/${o.order_id}`)
 }
@@ -195,7 +196,7 @@ async function handleCancel(o) {
   background: transparent; color: #ef4444;
   border: 1.5px solid #fca5a5;
 }
-.btn-chat {
+.btn-chat {                                             /* yzr */
   background: #fff; color: #8b5cf6;
   border: 1.5px solid #c4b5fd;
 }

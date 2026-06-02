@@ -31,7 +31,7 @@
         <div class="qa-icon">🪪</div>
         <div class="qa-info">
           <div class="qa-title">车辆认证</div>
-          <div class="qa-sub">{{ pendingCount > 0 ? '还有 ' + pendingCount + ' 辆待认证' : '全部车辆已认证' }}</div>
+          <div class="qa-sub">{{ verifyActionHint }}</div>
         </div>
         <span class="qa-badge" v-if="pendingCount > 0">{{ pendingCount }}</span>
         <span class="qa-arrow">›</span>
@@ -53,14 +53,14 @@
 
       <div class="vehicle-list" v-else>
         <article
-          v-for="item in vehicles"
-          :key="item.vehicleId"
           class="vehicle-item"
           :class="{
             'v-verified': item.verified,
             'v-pending': !item.verified,
             'v-disabled': item.status === 'disabled'
           }"
+          v-for="item in vehicles"
+          :key="item.vehicleId"
         >
           <div class="item-main">
             <div class="title-row">
@@ -69,10 +69,9 @@
             </div>
             <div class="meta">{{ item.brand }} · {{ item.color }}</div>
             <div class="tags">
-              <van-tag type="success" v-if="item.verified">已认证</van-tag>
-              <van-tag type="warning" v-else>待认证</van-tag>
-              <van-tag :type="item.status === 'available' ? 'primary' : 'default'">
-                {{ item.status === 'available' ? '可接单' : '已停用' }}
+              <van-tag :type="vehicleVerifyTagType(item)">{{ vehicleVerifyText(item) }}</van-tag>
+              <van-tag :type="vehicleServiceTagType(item)">
+                {{ vehicleServiceText(item) }}
               </van-tag>
             </div>
           </div>
@@ -84,9 +83,10 @@
               size="small"
               type="success"
               plain
+              :disabled="isVehicleVerifyPending(item)"
               @click="goVerify(item.vehicleId)"
             >
-              去认证
+              {{ isVehicleVerifyPending(item) ? '审核中' : '去认证' }}
             </van-button>
             <van-button
               size="small"
@@ -116,32 +116,47 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { showConfirmDialog, showNotify } from 'vant'
+import { showNotify, showConfirmDialog } from 'vant'
 import {
   deleteOwnerVehicle,
   fetchOwnerVehicles,
   updateOwnerVehicleStatus
 } from '../../api/ride'
 
+// 页面状态：列表与加载态。
 const vehicles = ref([])
 const loading = ref(false)
 const showVerifySheet = ref(false)
 const router = useRouter()
-
 const totalCount = computed(() => vehicles.value.length)
 const verifiedCount = computed(() => vehicles.value.filter((item) => item.verified).length)
-const pendingCount = computed(() => totalCount.value - verifiedCount.value)
+const pendingCount = computed(() => vehicles.value.filter((item) => !item.verified && !isVehicleVerifyPending(item)).length)
+const reviewPendingCount = computed(() => vehicles.value.filter(isVehicleVerifyPending).length)
 const pendingVehicles = computed(() => vehicles.value.filter((item) => !item.verified))
+const verifyActionHint = computed(() => {
+  if (pendingCount.value > 0) {
+    return '还有 ' + pendingCount.value + ' 辆待认证'
+  }
+  if (reviewPendingCount.value > 0) {
+    return '还有 ' + reviewPendingCount.value + ' 辆审核中'
+  }
+  return '全部车辆已认证'
+})
 const verifySheetActions = computed(() => pendingVehicles.value.map((item) => ({
-  name: `${item.plateNo} · ${item.brand} · ${item.color}`,
-  vehicleId: item.vehicleId
+  name: isVehicleVerifyPending(item)
+    ? `${item.plateNo} · 该车辆认证正在审核`
+    : `${item.plateNo} · ${item.brand} · ${item.color}`,
+  vehicleId: item.vehicleId,
+  disabled: isVehicleVerifyPending(item)
 })))
 
+// 页面进入时先拉取车辆列表。
 onMounted(() => {
   refreshVehicles()
 })
 
 function normalizeVerified(value) {
+  // 避免把字符串 "0" / "false" 当成真值，导致前端误显示已认证。
   if (typeof value === 'boolean') {
     return value
   }
@@ -161,6 +176,7 @@ function normalizeVerified(value) {
 }
 
 function normalizeVehicle(item) {
+  // 兼容后端字段差异，统一成页面使用的数据结构。
   return {
     vehicleId: item.vehicleId ?? item.vehicle_id ?? item.id,
     plateNo: String(item.plateNo ?? item.plate_no ?? '').toUpperCase(),
@@ -168,11 +184,45 @@ function normalizeVehicle(item) {
     color: String(item.color ?? ''),
     seatCapacity: Number(item.seatCapacity ?? item.seat_capacity ?? 4),
     verified: normalizeVerified(item.verified),
+    verifyStatus: String(item.verifyStatus ?? item.verify_status ?? '').toLowerCase(),
     status: item.status === 'disabled' ? 'disabled' : 'available'
   }
 }
 
+function isVehicleVerifyPending(item) {
+  return item.verifyStatus === 'pending'
+}
+
+function vehicleVerifyText(item) {
+  if (item.verified || item.verifyStatus === 'approved') {
+    return '已认证'
+  }
+  return isVehicleVerifyPending(item) ? '审核中' : '待认证'
+}
+
+function vehicleVerifyTagType(item) {
+  if (item.verified || item.verifyStatus === 'approved') {
+    return 'success'
+  }
+  return isVehicleVerifyPending(item) ? 'primary' : 'warning'
+}
+
+function vehicleServiceText(item) {
+  if (item.status === 'disabled') {
+    return '已停用'
+  }
+  return item.verified ? '可接单' : '待认证不可接单'
+}
+
+function vehicleServiceTagType(item) {
+  if (item.status === 'disabled') {
+    return 'default'
+  }
+  return item.verified ? 'primary' : 'warning'
+}
+
 async function refreshVehicles() {
+  // 拉取最新数据；后端会根据开关决定走 Mock 还是数据库。
   loading.value = true
   try {
     const data = await fetchOwnerVehicles()
@@ -199,12 +249,21 @@ function goCreateVehicle() {
 
 async function goPendingVerify() {
   if (pendingVehicles.value.length === 0) {
-    showNotify({ type: 'success', message: '当前没有待认证车辆' })
+    const message = reviewPendingCount.value > 0
+      ? '该车辆认证正在审核'
+      : '当前没有待认证车辆'
+    showNotify({ type: reviewPendingCount.value > 0 ? 'warning' : 'success', message })
     return
   }
 
-  if (pendingVehicles.value.length === 1) {
-    goVerify(pendingVehicles.value[0].vehicleId)
+  if (pendingVehicles.value.length === 1 && isVehicleVerifyPending(pendingVehicles.value[0])) {
+    showNotify({ type: 'warning', message: '该车辆认证正在审核' })
+    return
+  }
+
+  const submittableVehicles = pendingVehicles.value.filter((item) => !isVehicleVerifyPending(item))
+  if (submittableVehicles.length === 1 && pendingVehicles.value.length === 1) {
+    goVerify(submittableVehicles[0].vehicleId)
     return
   }
 
@@ -212,6 +271,10 @@ async function goPendingVerify() {
 }
 
 function onVerifyActionSelect(action) {
+  if (action?.disabled) {
+    showNotify({ type: 'warning', message: '该车辆认证正在审核' })
+    return
+  }
   if (action?.vehicleId) {
     goVerify(action.vehicleId)
   }
@@ -222,6 +285,7 @@ function goVerify(vehicleId) {
 }
 
 async function toggleStatus(item) {
+  // 车辆状态在可用和停用之间切换。
   const nextStatus = item.status === 'available' ? 'disabled' : 'available'
   try {
     await updateOwnerVehicleStatus(item.vehicleId, nextStatus)
@@ -234,6 +298,7 @@ async function toggleStatus(item) {
 
 async function removeVehicle(id) {
   try {
+    // 删除前确认，防止误操作。
     await showConfirmDialog({
       title: '删除车辆',
       message: '删除后无法恢复，是否继续？'
@@ -257,6 +322,7 @@ async function removeVehicle(id) {
   padding-bottom: 24px;
 }
 
+/* 统计横幅 */
 .stat-banner {
   display: flex;
   align-items: center;
@@ -320,6 +386,7 @@ async function removeVehicle(id) {
   }
 }
 
+/* 快捷入口 */
 .quick-actions {
   display: flex;
   flex-direction: column;
@@ -388,6 +455,7 @@ async function removeVehicle(id) {
   margin-left: 6px;
 }
 
+/* 段落标签 */
 .section-label {
   display: flex;
   align-items: center;
@@ -509,3 +577,4 @@ async function removeVehicle(id) {
   }
 }
 </style>
+

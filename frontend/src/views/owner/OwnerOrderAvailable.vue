@@ -148,6 +148,29 @@ async function loadOrders() {
   }
 }
 
+function normalizeVerified(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    const text = value.trim().toLowerCase()
+    if (['1', 'true', 'yes', 'y', 'on'].includes(text)) return true
+    if (['0', 'false', 'no', 'n', 'off', ''].includes(text)) return false
+  }
+  return Boolean(value)
+}
+
+function normalizeVehicle(item) {
+  return {
+    vehicle_id: item.vehicle_id ?? item.vehicleId ?? item.id,
+    plate_no: item.plate_no ?? item.plateNo ?? '',
+    brand: item.brand ?? '',
+    color: item.color ?? '',
+    seat_capacity: item.seat_capacity ?? item.seatCapacity ?? 4,
+    status: item.status === 'disabled' ? 'disabled' : 'available',
+    verified: normalizeVerified(item.verified)
+  }
+}
+
 async function openAccept(o) {
   currentOrder.value = o
   selectedVehicleId.value = ''
@@ -156,7 +179,9 @@ async function openAccept(o) {
   vehicleLoading.value = true
   try {
     const res = await rideApi.listMyVehicles()
-    vehicles.value = (res.items || []).filter(v => v.status === 'available' && v.verified)
+    vehicles.value = (res.items || [])
+      .map(normalizeVehicle)
+      .filter(v => v.status === 'available' && v.verified)
     if (vehicles.value.length === 1) {
       selectedVehicleId.value = vehicles.value[0].vehicle_id
     }
@@ -169,6 +194,11 @@ async function openAccept(o) {
 
 async function confirmAccept() {
   if (!selectedVehicleId.value) return
+  const selected = vehicles.value.find((item) => item.vehicle_id === selectedVehicleId.value)
+  if (!selected || selected.status !== 'available' || !selected.verified) {
+    showToast('请选择本人已认证且可用的车辆')
+    return
+  }
   accepting.value = true
   try {
     await rideApi.acceptOrder(currentOrder.value.order_id, selectedVehicleId.value)

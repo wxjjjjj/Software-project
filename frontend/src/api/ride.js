@@ -23,11 +23,21 @@ function buildErrorMessage(payload, fallback) {
   return fallback
 }
 
+function isOwnerVerified(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value !== 0
+  if (typeof value === 'string') {
+    return ['1', 'true', 'yes', 'y', 'on'].includes(value.trim().toLowerCase())
+  }
+  return Boolean(value)
+}
+
 function buildHeaders() {
   const s = JSON.parse(localStorage.getItem('session') || '{}')
   const headers = {
     'Content-Type': 'application/json',
     'X-User-Id': getUserId(),
+    'X-Owner-Verified': isOwnerVerified(s.ownerVerified) ? 'true' : 'false',
   }
   if (s.role === 'admin') headers['X-User-Role'] = 'admin'
   return headers

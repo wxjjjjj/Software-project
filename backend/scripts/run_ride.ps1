@@ -1,5 +1,6 @@
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backendDir = Split-Path -Parent $scriptDir
 $projectDir = Split-Path -Parent $backendDir
-Set-Location $projectDir
-python -m uvicorn backend.ride.service:app --reload --port 8002
+$condaActivate = "D:\anaconda3\Scripts\activate.bat"
+
+cmd.exe /D /C "call `"$condaActivate`" software && cd /d `"$projectDir`" && python -m uvicorn backend.ride.service:app --reload --port 8002"
