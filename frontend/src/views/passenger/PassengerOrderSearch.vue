@@ -345,7 +345,6 @@ async function doSearch() {
 .order-card.s-published { border-left-color: #165DFF; }
 .order-card.s-locked    { border-left-color: #f97316; }
 .order-card.s-completed { border-left-color: #10b981; }
-.order-card.s-cancelled { border-left-color: #cbd5e1; opacity: .7; }
 .order-card.s-full      { border-left-color: #f59e0b; }
 
 .card-head {

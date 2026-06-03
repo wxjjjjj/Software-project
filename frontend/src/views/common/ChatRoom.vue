@@ -30,7 +30,7 @@
               @click="selectedTargetId = target.id"
             >
               <span class="target-role">{{ target.roleLabel }}</span>
-              <span class="target-name">{{ target.id }}</span>
+              <span class="target-name">{{ target.name }}</span>
             </button>
           </div>
 
@@ -40,7 +40,7 @@
         <template v-if="activeTarget">
           <div class="chat-panel">
             <div class="chat-panel-head">
-              正在和{{ activeTarget.roleLabel }} {{ activeTarget.id }}聊天
+              正在和{{ activeTarget.roleLabel }} {{ activeTarget.name }}聊天
             </div>
 
             <div class="chat-messages" ref="msgContainer">
@@ -98,6 +98,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
+import { fetchUserProfiles, getCachedUsername } from '@/api/account.js'
 import { getMessages, getUserId as getOpsUserId, markMessagesRead, sendMessage } from '../../api/ops.js'
 import { getUserId as getRideUserId, rideApi } from '../../api/ride.js'
 
@@ -114,6 +115,7 @@ const messages = ref([])
 const inputText = ref('')
 const sending = ref(false)
 const msgContainer = ref(null)
+const userNames = ref({})
 
 function formatMessageTime(value) {
   if (!value) return ''
@@ -143,6 +145,11 @@ function toStableChatUserId(value) {
   return 100000 + hash
 }
 
+function displayName(id) {
+  const key = String(id || '').trim()
+  return userNames.value[key] || getCachedUsername(key)
+}
+
 const orderStatus = computed(() => {
   const status = order.value?.status
   return ({
@@ -150,7 +157,6 @@ const orderStatus = computed(() => {
     full: { label: '已满员', tone: 'warning' },
     locked: { label: '已锁单', tone: 'primary' },
     completed: { label: '已完成', tone: 'success' },
-    cancelled: { label: '已取消', tone: 'default' },
   })[status] || { label: status || '未知状态', tone: 'default' }
 })
 
@@ -184,6 +190,7 @@ const availableTargets = computed(() => {
 
     targets.push({
       id,
+      name: displayName(id),
       backendUserId,
       ...roleMeta,
     })
@@ -249,12 +256,35 @@ async function loadOrder() {
   loadingOrder.value = true
   try {
     order.value = await rideApi.getOrderDetail(orderId)
+    await syncUserNames()
   } catch (error) {
     order.value = null
     showToast(error.message || '加载订单失败')
   } finally {
     loadingOrder.value = false
   }
+}
+
+async function syncUserNames() {
+  if (!order.value) return
+
+  const ids = new Set()
+  const addId = (value) => {
+    const id = String(value || '').trim()
+    if (id) ids.add(id)
+  }
+
+  addId(order.value.passenger_id)
+  addId(order.value.owner_id)
+  for (const passenger of order.value.passengers || []) {
+    addId(passenger.passenger_id)
+  }
+
+  const profiles = await fetchUserProfiles(Array.from(ids))
+  userNames.value = Object.entries(profiles).reduce((map, [id, profile]) => {
+    map[id] = profile.username
+    return map
+  }, { ...userNames.value })
 }
 
 async function sendMsg() {

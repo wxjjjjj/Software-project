@@ -59,7 +59,7 @@
       <!-- ── 时间 ── -->
       <div class="form-section">
         <div class="fs-header">
-          <span class="fs-dot"></span>出发时间窗口
+          <span class="fs-dot"></span>出发时间
         </div>
         <van-cell-group inset>
           <van-field
@@ -87,7 +87,7 @@
         <van-cell-group inset>
           <van-field
             v-model.number="form.group_size"
-            label="我方人数"
+            label="人数"
             type="digit"
             placeholder="含本人共几位"
             required
@@ -95,7 +95,7 @@
           ><template #extra><span class="field-hint">人</span></template></van-field>
           <van-field
             v-model.number="form.extra_seats"
-            label="还能带几人"
+            label="接受拼车人数"
             type="digit"
             placeholder="0 表示不带其他人"
           ><template #extra><span class="field-hint">人</span></template></van-field>

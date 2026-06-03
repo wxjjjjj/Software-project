@@ -199,7 +199,6 @@ onMounted(async () => {
 }
 .order-card.s-locked    { border-left-color: #f97316; }
 .order-card.s-completed { border-left-color: #10b981; }
-.order-card.s-cancelled { border-left-color: #cbd5e1; opacity: .7; }
 
 .card-head {
   display: flex; align-items: center; gap: 8px;

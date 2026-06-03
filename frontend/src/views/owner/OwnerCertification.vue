@@ -1,9 +1,9 @@
 <template>
   <div class="driver-cert-page">
     <section class="page-card hero-card">
-      <div class="eyebrow">Owner Verification</div>
-      <h2>车主认证中心</h2>
-      <p class="page-hint">先提交车主个人资质，管理员通过后，再新增车辆并进入车辆认证审核。</p>
+      <div class="eyebrow"></div>
+      <h2>车主认证</h2>
+      <p class="page-hint">提交车主个人资质并通过后，即可新增车辆并进入车辆认证审核。</p>
 
       <div class="flow-card">
         <div class="flow-step" :class="{ active: status === 'unapplied', done: isApplied }">
@@ -64,7 +64,7 @@
     <section v-else-if="status === 'pending'" class="page-card state-card">
       <van-tag type="warning" size="large">审核中</van-tag>
       <h3>车主申请已提交</h3>
-      <p class="hint">请等待管理员在“用户管理”中审核。审核通过后，刷新本页即可继续新增车辆。</p>
+      <p class="hint">请等待审核。审核通过后，刷新即可新增车辆。</p>
       <div class="action-grid">
         <van-button type="primary" plain block :loading="loadingProfile" @click="loadProfile">
           刷新审核状态

@@ -2,7 +2,7 @@
   <div class="user-profile-page">
     <section class="page-card">
       <div class="eyebrow">用户资料</div>
-      <h2>用户 {{ userId }}</h2>
+      <h2>{{ displayName }}</h2>
       <p>{{ profileHint }}</p>
       <div class="actions">
         <van-button plain type="warning" block :to="complaintRoute">投诉该用户</van-button>
@@ -12,10 +12,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { fetchUserProfile, getCachedUsername } from '@/api/account.js'
 
 const route = useRoute()
+const profile = ref(null)
 
 function getSessionRole() {
   try {
@@ -29,6 +31,9 @@ const userId = computed(() => String(route.params.userId || ''))
 const orderId = computed(() => String(route.query.orderId || ''))
 const viewerRole = computed(() => String(route.query.viewer || '').toLowerCase())
 const currentViewerRole = computed(() => viewerRole.value || getSessionRole())
+const displayName = computed(() =>
+  profile.value?.username || String(route.query.username || '').trim() || getCachedUsername(userId.value)
+)
 const targetRole = computed(() => {
   const value = String(route.query.target || '').toLowerCase()
   if (value === 'driver') return 'driver'
@@ -39,7 +44,7 @@ const targetRole = computed(() => {
 const complaintRoute = computed(() => ({
   path: currentViewerRole.value === 'driver' ? '/driver/feedback' : '/passenger/feedback',
   query: {
-    username: userId.value,
+    username: displayName.value,
     orderId: orderId.value || undefined,
     target: targetRole.value,
   },
@@ -52,6 +57,14 @@ const profileHint = computed(() => {
   }
   return '这里用于查看对方资料。如需联系，请从对应订单页面进入聊天。'
 })
+
+watch(
+  userId,
+  async (value) => {
+    profile.value = await fetchUserProfile(value)
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped>

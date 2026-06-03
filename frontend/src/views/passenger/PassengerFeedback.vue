@@ -4,7 +4,6 @@
       <div class="eyebrow">投诉举报</div>
       <h2>提交投诉</h2>
       <p class="intro">
-        建议从订单详情里的用户资料进入投诉，这样系统会自动带入被投诉用户。你也可以手动填写用户名。
       </p>
 
       <div v-if="sourceOrderId" class="context-tip">已自动关联当前行程，无需重复填写行程信息。</div>

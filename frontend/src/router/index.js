@@ -96,7 +96,7 @@ const routes = [
       { path: 'me/vehicles/create', component: OwnerVehicleForm, meta: { requiresAuth: true, role: 'user', ownerRequired: true, backTo: '/me/vehicles' } },
       { path: 'me/vehicles/:vehicleId/edit', redirect: '/me/vehicles' },
       { path: 'me/vehicles/:vehicleId/verify', redirect: '/me/vehicles' },
-      { path: 'me/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
+      { path: 'me/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'user', ownerRequired: true, backTo: '/me/profile' } },
       { path: 'me/messages', component: MeMessages, meta: { requiresAuth: true, role: 'user', backTo: '/me/profile' } },
       { path: 'users/:userId', component: UserProfile, meta: { requiresAuth: true, role: 'user', backTo: '/me/profile' } },
 

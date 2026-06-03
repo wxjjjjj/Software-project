@@ -4,7 +4,6 @@
       <van-tab title="全部"   name="" />
       <van-tab title="进行中" name="locked" />
       <van-tab title="已完成" name="completed" />
-      <van-tab title="已取消" name="cancelled" />
     </van-tabs>
 
     <div class="list-wrap">
@@ -41,7 +40,7 @@
           <!-- 锁单操作 -->
           <div class="card-action">
             <button class="btn-detail" @click="goDetail(o)">详情</button>
-            <button v-if="o.status !== 'cancelled' && o.status !== 'completed'" class="btn-chat" @click="goChat(o)">💬 聊天</button>    <!-- yzr -->
+            <button v-if="o.status !== 'completed'" class="btn-chat" @click="goChat(o)">💬 聊天</button>    <!-- yzr -->
             <button v-if="o.status === 'locked'" class="btn-complete" @click="handleComplete(o)">✓ 标记完成</button>
             <button v-if="o.status === 'locked'" class="btn-cancel"   @click="handleCancel(o)">取消接单</button>
           </div>
@@ -66,8 +65,9 @@ const statusLabel = (s) => STATUS_MAP[s]?.label || s
 const statusType  = (s) => STATUS_MAP[s]?.type  || 'default'
 const fmtTime     = (s) => formatTime(s)
 
+const visibleOrders = computed(() => orders.value.filter(o => o.status !== 'cancelled'))
 const filtered = computed(() =>
-  activeTab.value ? orders.value.filter(o => o.status === activeTab.value) : orders.value
+  activeTab.value ? visibleOrders.value.filter(o => o.status === activeTab.value) : visibleOrders.value
 )
 
 onMounted(() => loadOrders())
@@ -137,7 +137,6 @@ async function handleCancel(o) {
 }
 .order-card.s-locked    { border-left-color: #f97316; }
 .order-card.s-completed { border-left-color: #10b981; }
-.order-card.s-cancelled { border-left-color: #cbd5e1; opacity: .7; }
 
 .card-head {
   display: flex; align-items: center; gap: 8px;

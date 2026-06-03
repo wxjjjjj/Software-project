@@ -5,7 +5,6 @@
       <van-tab title="招募中" name="published" />
       <van-tab title="已锁单" name="locked" />
       <van-tab title="已完成" name="completed" />
-      <van-tab title="已取消" name="cancelled" />
     </van-tabs>
 
     <div class="list-wrap">
@@ -67,8 +66,9 @@ const statusLabel = (s) => STATUS_MAP[s]?.label || s
 const statusType  = (s) => STATUS_MAP[s]?.type  || 'default'
 const fmtTime     = (s) => formatTime(s)
 
+const visibleOrders = computed(() => orders.value.filter(o => o.status !== 'cancelled'))
 const filtered = computed(() =>
-  activeTab.value ? orders.value.filter(o => o.status === activeTab.value) : orders.value
+  activeTab.value ? visibleOrders.value.filter(o => o.status === activeTab.value) : visibleOrders.value
 )
 
 onMounted(() => loadOrders())
@@ -109,7 +109,6 @@ function onTabChange() {}
 .order-card.s-published { border-left-color: #165DFF; }
 .order-card.s-locked    { border-left-color: #f97316; }
 .order-card.s-completed { border-left-color: #10b981; }
-.order-card.s-cancelled { border-left-color: #cbd5e1; opacity: .7; }
 .order-card.s-full      { border-left-color: #f59e0b; }
 
 .card-head {

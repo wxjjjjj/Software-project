@@ -2,9 +2,9 @@
   <div class="vehicle-review-page">
     <section class="page-card page-hero">
       <div>
-        <div class="eyebrow">车辆认证</div>
+        <!-- <div class="eyebrow">车辆认证</div> -->
         <h2>车辆认证审核</h2>
-        <p class="hint">查看车主提交的认证资料，并执行通过或驳回。</p>
+        <!-- <p class="hint">查看车主提交的认证资料，并执行通过或驳回。</p> -->
       </div>
 
       <van-tabs v-model:active="activeTab" @change="onTabChange">

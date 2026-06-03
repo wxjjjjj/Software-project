@@ -75,7 +75,7 @@
           <div class="avatar avatar-owner">{{ avatarText(acceptedDriverProfile.userId) }}</div>
           <div class="passenger-main">
             <div class="passenger-name">
-              {{ acceptedDriverProfile.userId }}
+              {{ displayName(acceptedDriverProfile.userId) }}
               <van-tag type="warning" plain>车主</van-tag>
               <van-tag v-if="acceptedDriverProfile.userId === String(userId)" type="success" plain>我</van-tag>
             </div>
@@ -108,7 +108,7 @@
             <div class="avatar">{{ avatarText(passenger.passenger_id) }}</div>
             <div class="passenger-main">
               <div class="passenger-name">
-                {{ passenger.passenger_id }}
+                {{ displayName(passenger.passenger_id) }}
                 <van-tag v-if="String(passenger.passenger_id) === String(order.passenger_id)" type="primary" plain>发起人</van-tag>
                 <van-tag v-if="String(passenger.passenger_id) === String(userId)" type="success" plain>我</van-tag>
               </div>
@@ -121,7 +121,7 @@
         <van-empty v-else image-size="56" description="暂无参与乘客" />
       </div>
 
-      <div class="action-area" v-if="order.status !== 'cancelled' && order.status !== 'completed'">
+      <div class="action-area" v-if="order.status !== 'completed'">
         <van-button
           v-if="canJoin"
           round
@@ -181,9 +181,6 @@
       <div class="ended-wrap" v-if="order.status === 'completed'">
         <van-empty image="success" description="行程已完成" />
       </div>
-      <div class="ended-wrap" v-if="order.status === 'cancelled'">
-        <van-empty description="订单已取消" />
-      </div>
     </template>
 
     <van-empty v-else description="订单不存在" />
@@ -194,6 +191,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showConfirmDialog, showSuccessToast, showToast } from 'vant'
+import { fetchUserProfiles, getCachedUsername } from '@/api/account.js'
 import { STATUS_MAP, formatTime, getUserId, rideApi } from '@/api/ride.js'
 
 const route = useRoute()
@@ -203,6 +201,7 @@ const orderId = route.params.id
 const order = ref(null)
 const loading = ref(true)
 const acting = ref(false)
+const userNames = ref({})
 const userId = getUserId()
 
 const statusLabel = (status) => STATUS_MAP[status]?.label || status
@@ -236,7 +235,7 @@ const hasAcceptedDriver = computed(() => {
 
 const showOpsActions = computed(() => {
   if (!order.value) return false
-  if (order.value.status === 'cancelled' || order.value.status === 'completed') return false
+  if (order.value.status === 'completed') return false
 
   if (isDriverView.value) {
     return String(order.value.owner_id || '') === String(userId) || hasAcceptedDriver.value
@@ -303,12 +302,18 @@ function buildUserProfileRoute(targetUserId, targetRole) {
       orderId: orderId,
       viewer: viewerRole.value,
       target: targetRole,
+      username: displayName(targetUserId),
     },
   }
 }
 
+function displayName(id) {
+  const key = String(id || '').trim()
+  return userNames.value[key] || getCachedUsername(key)
+}
+
 function avatarText(id) {
-  return String(id || '?').slice(0, 1).toUpperCase()
+  return displayName(id).slice(0, 1).toUpperCase()
 }
 
 function payStatusLabel(status) {
@@ -322,12 +327,35 @@ function payStatusLabel(status) {
 onMounted(async () => {
   try {
     order.value = await rideApi.getOrderDetail(orderId)
+    await syncUserNames()
   } catch {
     order.value = null
   } finally {
     loading.value = false
   }
 })
+
+async function syncUserNames() {
+  if (!order.value) return
+
+  const ids = new Set()
+  const addId = (value) => {
+    const id = String(value || '').trim()
+    if (id) ids.add(id)
+  }
+
+  addId(order.value.passenger_id)
+  addId(order.value.owner_id)
+  for (const passenger of passengers.value) {
+    addId(passenger.passenger_id)
+  }
+
+  const profiles = await fetchUserProfiles(Array.from(ids))
+  userNames.value = Object.entries(profiles).reduce((map, [id, profile]) => {
+    map[id] = profile.username
+    return map
+  }, { ...userNames.value })
+}
 
 async function handleJoin() {
   try {
@@ -344,6 +372,7 @@ async function handleJoin() {
     await rideApi.joinOrder(orderId)
     showSuccessToast('加入成功！')
     order.value = await rideApi.getOrderDetail(orderId)
+    await syncUserNames()
   } catch (error) {
     showToast(error.message || '操作失败')
   } finally {

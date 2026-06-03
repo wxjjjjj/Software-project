@@ -1,96 +1,98 @@
-# 订单与车辆域 API 契约
+# 订单车辆域 API
 
-**负责人**: hws、zj  
-**数据库**: ride_db  
-**服务端口**: 8002（本地开发），通过网关 8000 统一暴露  
-**功能范围**: 订单发布/搜索/详情/状态流转、车主接单、车辆管理、车辆认证审核
+订单车辆域服务端口为 `8002`，通常通过网关 `8000` 访问。所有路径均带 `/api` 前缀。
 
----
+## 当前职责
 
-## 鉴权约定
+- 乘客发布拼车订单、搜索订单、加入拼单、查看自己的订单。
+- 车主查看可接订单、选择已认证车辆接单、完成订单。
+- 乘客、车主或管理员取消订单。
+- 车主新增车辆并一次性提交车辆认证资料。
+- 管理员审核车辆认证申请。
 
-所有接口通过 HTTP Header 传递用户身份，无 JWT：
+## Header 约定
 
-| Header | 说明 | 示例 |
-|--------|------|------|
-| `X-User-Id` | 当前用户 ID | `dev-user-1` |
-| `X-User-Role` | 用户角色（管理员操作时传入） | `admin` |
-| `X-Owner-Verified` | 当前用户是否已完成车主身份认证，车辆管理和车主接单接口需要 | `true` |
+| Header | 说明 |
+| --- | --- |
+| `X-User-Id` | 当前登录用户 ID。数据库模式必传，Mock 模式缺省时才会使用内置默认值。 |
+| `X-User-Role` | 当前角色，管理员取消订单或审核车辆时传 `admin`。 |
+| `X-Owner-Verified` | 当前用户是否已通过车主身份认证。车辆管理和接单接口要求为 `true`。 |
 
-> 车辆管理、车辆认证申请、车主接单等车主侧接口会同时校验 `X-Owner-Verified: true`。未完成车主身份认证的用户不能登记车辆，也不能接单。
+前端由登录会话自动组装这些 Header。数据库模式不再自动回退到 Mock 用户，缺少 `X-User-Id` 会返回 `401`。
 
----
+## 订单状态
 
-## 订单接口
+| 状态 | 说明 | 前端展示 |
+| --- | --- | --- |
+| `published` | 招募中，可搜索、可加入、可被车主接单 | 展示 |
+| `full` | 拼单人数已满，可被车主接单 | 展示 |
+| `locked` | 车主已接单，等待完成 | 展示 |
+| `completed` | 已完成 | 展示 |
+| `cancelled` | 已取消 | 后端保留，前端列表和详情不展示 |
 
-### 1. 发布订单
+状态流转：
 
-- **方法**: POST  
-- **路径**: `/api/orders`  
-- **权限**: 乘客（任意登录用户）
+```text
+published -> full
+published/full -> locked -> completed
+published/full/locked -> cancelled
+```
 
-**请求 JSON**:
+## 发布订单
+
+`POST /api/orders`
+
+请求：
+
 ```json
 {
-  "passenger_id": "user-001",
-  "start_loc": "软件园",
-  "end_loc": "大学城",
-  "depart_time_from": "2026-04-15T08:00:00",
-  "depart_time_to": "2026-04-15T09:00:00",
+  "start_loc": "大学城",
+  "end_loc": "广州南站",
+  "depart_time_from": "2026-06-04T09:00:00",
+  "depart_time_to": "2026-06-04T10:00:00",
   "group_size": 1,
   "extra_seats": 2,
-  "expected_price": 45.0,
-  "tags": ["静音", "禁烟"]
+  "expected_price": 45,
+  "tags": ["准时出发", "禁烟"]
 }
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `passenger_id` | string | 发单人 ID |
-| `start_loc` | string | 出发地 |
-| `end_loc` | string | 目的地 |
-| `depart_time_from` | ISO8601 | 最早出发时间 |
-| `depart_time_to` | ISO8601 | 最晚出发时间 |
-| `group_size` | int | 本人同行人数 |
-| `extra_seats` | int | 额外可带人数 |
-| `expected_price` | float | 期望总车费 |
-| `tags` | string[] | 可选标签列表 |
+说明：
 
-**响应 JSON**:
+- 发单人由 `X-User-Id` 决定，前端不再提交 `passenger_id`。
+- `seats_needed = group_size + extra_seats`，至少为 `1`。
+
+响应：
+
 ```json
 {
-  "order_id": "ord-xxxxxxxx",
+  "order_id": "ord-xxxx",
   "status": "published"
 }
 ```
 
-**错误码**: `400`（参数缺失）
+## 搜索订单
 
----
+`GET /api/orders/search`
 
-### 2. 搜索订单
+Query 参数均可选：
 
-- **方法**: GET  
-- **路径**: `/api/orders/search`  
-- **权限**: 任意登录用户
+| 参数 | 说明 |
+| --- | --- |
+| `start_loc` | 出发地关键词 |
+| `end_loc` | 目的地关键词 |
+| `time_from` | 最早出发时间下限 |
+| `time_to` | 最晚出发时间上限 |
+| `tags` | 逗号分隔标签，例如 `禁烟,准时出发` |
 
-**Query 参数**（均可选）:
+响应：
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `start_loc` | string | 出发地关键词（模糊匹配） |
-| `end_loc` | string | 目的地关键词（模糊匹配） |
-| `time_from` | ISO8601 | 出发时间下限 |
-| `time_to` | ISO8601 | 出发时间上限 |
-| `tags` | string | 标签筛选，逗号分隔，需全部命中（如 `静音,禁烟`） |
-
-**响应 JSON**:
 ```json
 {
   "items": [
     {
       "order_id": "ord-seed-001",
-      "passenger_id": "dev-user-1",
+      "passenger_id": "3",
       "start_loc": "软件园",
       "end_loc": "大学城",
       "depart_time_from": "2026-04-15T08:00:00",
@@ -98,12 +100,12 @@
       "seats_needed": 3,
       "seats_joined": 1,
       "remaining_seats": 2,
-      "expected_price": 45.0,
+      "expected_price": 45,
       "owner_id": null,
       "vehicle_id": null,
       "locked_time": null,
       "status": "published",
-      "tags": ["静音", "禁烟"],
+      "tags": ["禁烟", "准时出发"],
       "created_at": "2026-04-13T10:00:00",
       "updated_at": "2026-04-13T10:00:00"
     }
@@ -111,279 +113,286 @@
 }
 ```
 
-> 仅返回 `published` / `full` 状态订单（招募中）。
+说明：搜索接口只返回 `published` 和 `full` 状态订单。
 
----
+## 订单列表
 
-### 3. 订单列表
+`GET /api/orders`
 
-- **方法**: GET  
-- **路径**: `/api/orders`  
-- **权限**: 登录用户
-
-**Query 参数**（二选一）:
+Query：
 
 | 参数 | 说明 |
-|------|------|
-| `passenger_id` | 查询该乘客发布/参与的订单 |
+| --- | --- |
+| `passenger_id` | 查询该乘客发布或参与的订单 |
 | `owner_id` | 查询该车主已接的订单 |
 
-不传参数时返回全部订单（管理员用途）。
+不传参数时返回全部订单，当前管理员订单页使用该方式。前端会统一过滤 `cancelled` 订单，因此乘客、车主、管理员界面都不会显示已取消订单。
 
----
+## 订单详情
 
-### 4. 订单详情
+`GET /api/orders/{order_id}`
 
-- **方法**: GET  
-- **路径**: `/api/orders/{order_id}`  
-- **权限**: 登录用户
+响应为订单对象，包含基础订单字段、`tags` 和 `passengers`。
 
-**响应**: 同搜索列表中单条结构，额外包含 `locked_time` 和 `passengers`。
+说明：
 
-**错误码**: `404`（订单不存在）
+- 当前详情页会把 `passenger_id`、`owner_id`、参与乘客 ID 转换成注册用户名展示。
+- 若前端拿到 `cancelled` 订单，会当作不可见订单处理并提示返回列表。
 
----
+## 修改订单
 
-### 5. 修改订单
+`PUT /api/orders/{order_id}`
 
-- **方法**: PUT  
-- **路径**: `/api/orders/{order_id}`  
-- **权限**: 发单人本人，且订单处于 `published` 状态
+请求只传需要修改的字段：
 
-**请求 JSON**（仅需传需要修改的字段）:
 ```json
 {
   "start_loc": "新出发地",
-  "expected_price": 50.0
+  "end_loc": "新目的地",
+  "depart_time_from": "2026-06-04T09:30:00",
+  "depart_time_to": "2026-06-04T10:30:00",
+  "seats_needed": 3,
+  "expected_price": 50,
+  "tags": ["不绕路"]
 }
 ```
 
-**错误码**: `403`（非本人）、`409`（状态不允许修改）
+约束：
 
----
+- 只有发单人本人可以修改。
+- 仅 `published` 状态允许修改。
 
-### 6. 取消订单
+## 取消订单
 
-- **方法**: POST  
-- **路径**: `/api/orders/{order_id}/cancel`  
-- **权限**: 发单人 / 车主 / 参与乘客 / 管理员（传 `X-User-Role: admin`）
+`POST /api/orders/{order_id}/cancel`
 
-**响应 JSON**:
+响应：
+
 ```json
 {
-  "order_id": "ord-xxx",
+  "order_id": "ord-xxxx",
   "status": "cancelled",
   "penalty": true
 }
 ```
 
-> `penalty: true` 表示本次取消需扣除信誉积分（锁单后取消触发）。
+说明：
 
-**错误码**: `403`（无权限）、`409`（订单已结束）
+- 发单人、参与乘客、接单车主或管理员可以取消。
+- 锁单后取消可能产生 `penalty: true`，用于后续信誉分或运营处理。
+- 前端收到取消成功后会返回列表；取消后的订单不再出现在乘客、车主、管理员界面。
 
----
+## 加入拼单
 
-### 7. 加入订单（拼单）
+`POST /api/orders/{order_id}/join`
 
-- **方法**: POST  
-- **路径**: `/api/orders/{order_id}/join`  
-- **权限**: 乘客（非发单人）
+约束：
 
-**响应 JSON**:
+- 由 `X-User-Id` 识别加入用户。
+- 发单人不能加入自己的订单。
+- 订单必须处于 `published` 或 `full` 可拼单流程中，且仍有剩余座位。
+
+响应：
+
 ```json
 {
-  "order_id": "ord-xxx",
+  "order_id": "ord-xxxx",
   "status": "published",
   "seats_joined": 2
 }
 ```
 
-> 座位满时状态自动变为 `full`。
+## 车主接单
 
-**错误码**: `409`（已参与 / 已满员 / 状态不允许）
+`POST /api/orders/{order_id}/accept`
 
----
+请求：
 
-### 8. 车主接单
-
-- **方法**: POST  
-- **路径**: `/api/orders/{order_id}/accept`  
-- **权限**: 已完成车主身份认证的车主（`X-User-Id` 为车主 ID，`X-Owner-Verified: true`）
-
-**请求 JSON**:
 ```json
 {
   "vehicle_id": "veh-001"
 }
 ```
 
-**响应 JSON**:
+约束：
+
+- `X-Owner-Verified` 必须为 `true`。
+- 订单必须为 `published` 或 `full`。
+- 车辆必须属于当前车主本人。
+- 车辆必须已通过管理员认证，且状态可用。
+
+响应：
+
 ```json
 {
-  "order_id": "ord-xxx",
+  "order_id": "ord-xxxx",
   "status": "locked",
-  "owner_id": "owner-001",
+  "owner_id": "998",
   "vehicle_id": "veh-001",
-  "locked_time": "2026-04-14T10:00:00"
+  "locked_time": "2026-06-04T10:00:00"
 }
 ```
 
-**校验规则**:
+## 完成订单
 
-- 订单必须处于 `published` 或 `full` 状态。
-- `vehicle_id` 必须属于当前车主本人。
-- 车辆必须已认证，即 `verified=true`。
-- 车辆必须处于 `available` 状态，禁用车辆不能接单。
+`POST /api/orders/{order_id}/complete`
 
-**错误码**: `403`（未完成车主身份认证 / 非本人车辆 / 无可用已认证车辆），`409`（已被接单 / 状态不允许）
+请求：
 
----
-
-### 9. 标记完成
-
-- **方法**: POST  
-- **路径**: `/api/orders/{order_id}/complete`  
-- **权限**: 车主 / 域3支付回调
-
-**请求 JSON**:
 ```json
 {
   "operator": "domain3"
 }
 ```
 
-**响应 JSON**:
-```json
-{
-  "order_id": "ord-xxx",
-  "status": "completed"
-}
-```
+说明：当前主要由车主端完成按钮调用；`operator` 保留给交易运营域回调。
 
-**错误码**: `409`（订单未处于 `locked` 状态）
+## 查询我的车辆
 
----
+`GET /api/vehicles`
 
-## 车辆接口
+约束：
 
-> 2026-05-04 整合后，车辆列表接口按 zj 契约返回 `{ "items": [...] }`，不再返回旧的 `{ "vehicles": [...] }`。
+- `X-User-Id` 必传。
+- `X-Owner-Verified` 必须为 `true`。
 
-### 10. 查询车主名下车辆
+响应：
 
-- **方法**: GET  
-- **路径**: `/api/vehicles`  
-- **权限**: 已完成车主身份认证的车主（通过 `X-User-Id` 识别，并要求 `X-Owner-Verified: true`）
-
-**响应 JSON**:
 ```json
 {
   "items": [
     {
-      "vehicle_id": "1",
-      "owner_id": "123",
-      "plate_no": "粤B12345",
-      "brand": "本田 雅阁",
-      "color": "深空黑",
+      "vehicle_id": "veh-001",
+      "owner_id": "998",
+      "plate_no": "粤A12345",
+      "brand": "比亚迪 秦",
+      "color": "白色",
       "seat_capacity": 5,
-      "verified": true,
-      "verify_status": "approved",
-      "status": "available"
+      "verified": false,
+      "verify_status": "pending",
+      "status": "available",
+      "pendingRequestId": "12"
     }
   ]
 }
 ```
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `verified` | boolean | 车辆是否已通过管理员认证 |
-| `verify_status` | enum | 认证流程状态：`unsubmitted` 未提交、`pending` 审核中、`approved` 已通过 |
-| `status` | enum | 车辆启停状态：`available` 可用、`disabled` 禁用 |
+前端当前设计：
 
-### 11. 新增车辆
+- 已审核通过：展示为可用于接单。
+- 审核中：只展示“撤回申请”。
+- 已驳回或无有效申请：提示重新提交新的车辆认证申请。
+- 不再提供“补交资料”“编辑”“停用”“删除”四个用户侧操作。
 
-- **方法**: POST
-- **路径**: `/api/vehicles`
-- **权限**: 已完成车主身份认证的车主
+## 新增车辆并提交认证
 
-**请求 JSON**:
+`POST /api/vehicles`
+
+请求：
+
 ```json
 {
-  "plate_no": "粤B12345",
-  "brand": "本田 雅阁",
-  "color": "深空黑",
+  "plate_no": "粤A12345",
+  "brand": "比亚迪 秦",
+  "color": "白色",
   "seat_capacity": 5
 }
 ```
 
-**校验规则**:
+响应返回车辆对象。前端创建成功后会立即调用车辆认证提交接口，因此用户看到的是一次完整的“新增车辆并提交认证申请”流程。
 
-- 车牌号会统一转为大写。
-- 车牌号必须符合大陆普通车牌或新能源车牌格式。
-- 同一车牌号不能重复登记。
-- 座位数必须在 2 到 9 之间。
+车辆字段校验：
 
-### 12. 编辑车辆
+- 车牌会统一转为大写。
+- 车牌号不能重复。
+- 座位数必须在 `2` 到 `9` 之间。
 
-- **方法**: PUT
-- **路径**: `/api/vehicles/{vehicle_id}`
-- **权限**: 已完成车主身份认证的车主，且只能编辑本人车辆
+## 提交车辆认证申请
 
-### 13. 启用或停用车辆
+`POST /api/vehicles/{vehicle_id}/verify-request`
 
-- **方法**: PATCH
-- **路径**: `/api/vehicles/{vehicle_id}/status`
-- **权限**: 已完成车主身份认证的车主，且只能操作本人车辆
+请求：
 
-**请求 JSON**:
-```json
-{ "status": "available" }
-```
-
-> `status` 只能是 `available` 或 `disabled`。
-
-### 14. 删除车辆
-
-- **方法**: DELETE
-- **路径**: `/api/vehicles/{vehicle_id}`
-- **权限**: 已完成车主身份认证的车主，且只能删除本人车辆
-
-### 15. 提交车辆认证申请
-
-- **方法**: POST
-- **路径**: `/api/vehicles/{vehicle_id}/verify-request`
-- **权限**: 已完成车主身份认证的车主，且只能为本人车辆提交
-
-**请求 JSON**:
 ```json
 {
   "owner_name": "张三",
-  "id_no": "310101199001011234",
-  "driver_license_no": "DL-001",
-  "vehicle_license_no": "VL-001",
-  "contact_phone": "13800000000",
-  "remark": "补充说明"
+  "id_no": "110101199001011234",
+  "driver_license_no": "DL20260001",
+  "vehicle_license_no": "VL20260001",
+  "contact_phone": "13812345678",
+  "remark": "行驶证资料完整"
 }
 ```
 
-**校验规则**:
+说明：
 
-- 已认证车辆不能重复提交认证。
-- 已存在 `pending` 审核申请的车辆不能再次提交，前端会显示“该车辆认证正在审核”。
+- 新增车辆页会一次性填写并提交这些资料。
+- 已通过认证的车辆不能重复提交。
+- 已有 `pending` 申请时不能重复提交。
 
+## 撤回车辆认证申请
 
-### 16. 管理员查看车辆认证申请
+`DELETE /api/vehicles/verify-requests/{request_id}`
 
-- **方法**: GET
-- **路径**: `/api/vehicles/verify-requests`
-- **权限**: 管理员（`X-User-Role: admin`）
+约束：
 
-### 17. 管理员审核车辆认证申请
+- 只能撤回当前车主自己的待审核申请。
+- 撤回后管理员审核列表不再显示该申请。
+- 当前前端会同步移除该车辆认证记录。
 
-- **方法**: PATCH
-- **路径**: `/api/vehicles/verify-requests/{request_id}/review`
-- **权限**: 管理员（`X-User-Role: admin`）
+响应：
 
-**请求 JSON**:
+```json
+{
+  "message": "申请已撤回"
+}
+```
+
+## 管理员查看车辆认证申请
+
+`GET /api/vehicles/verify-requests`
+
+Query：
+
+| 参数 | 说明 |
+| --- | --- |
+| `status` | 默认为 `pending`，也可传 `approved`、`rejected` 或空值查询更多状态 |
+
+Header：
+
+```text
+X-User-Role: admin
+```
+
+响应：
+
+```json
+{
+  "items": [
+    {
+      "request_id": "12",
+      "vehicle_id": "veh-001",
+      "owner_id": "998",
+      "plate_no": "粤A12345",
+      "brand": "比亚迪 秦",
+      "owner_name": "张三",
+      "id_no_masked": "110************234",
+      "driver_license_no": "DL20260001",
+      "vehicle_license_no": "VL20260001",
+      "contact_phone": "13812345678",
+      "status": "pending",
+      "review_note": ""
+    }
+  ]
+}
+```
+
+## 管理员审核车辆认证
+
+`PATCH /api/vehicles/verify-requests/{request_id}/review`
+
+请求：
+
 ```json
 {
   "decision": "approved",
@@ -391,44 +400,24 @@
 }
 ```
 
-> `decision` 只能是 `approved` 或 `rejected`。通过后车辆 `verified` 会变为 `true`，车辆列表中的 `verify_status` 会显示为 `approved`。
+说明：
 
----
+- `decision` 只能为 `approved` 或 `rejected`。
+- 通过后车辆的 `verified` 会变为 `true`，`verify_status` 变为 `approved`。
 
-## 订单状态流转
+## 后端保留但前端当前不暴露的车辆接口
 
-```
-published  ──(车主接单)──▶  locked  ──(标记完成)──▶  completed
-    │                         │
-    └──(取消)──▶ cancelled ◀──┘(取消/强制取消)
+以下接口仍在后端存在，用于兼容、调试或后续扩展，但当前用户侧页面不再展示对应操作：
 
-published ──(座位满)──▶ full ──(有人退出)──▶ published
-```
+- `PUT /api/vehicles/{vehicle_id}`：编辑车辆基础信息。
+- `PATCH /api/vehicles/{vehicle_id}/status`：启用或停用车辆。
+- `DELETE /api/vehicles/{vehicle_id}`：删除车辆。
+- `PATCH /api/vehicles/{vehicle_id}/verified`：管理员直接更新车辆认证布尔值。
 
-| 状态 | 说明 |
-|------|------|
-| `published` | 招募中，可搜索 |
-| `full` | 已满员，不再接受加入 |
-| `locked` | 已锁单（车主已接） |
-| `completed` | 已完成 |
-| `cancelled` | 已取消 |
+产品主流程以“新增车辆时资料一次提交，审核前可撤回，审核后等待管理员结果”为准。
 
----
+## Mock 与数据库模式
 
-## 数据库模式（ride_db）
-
-```sql
--- 主表
-orders(id, passenger_id, start_loc, end_loc,
-       depart_time_from, depart_time_to,
-       seats_needed, seats_joined, expected_price,
-       owner_id, vehicle_id, locked_time,
-       status, created_at, updated_at)
-
-order_tags(order_id, tag)
-order_passenger(id, order_id, passenger_id, joined_at)
-
-vehicle(id, owner_user_id, plate_no, brand, color, seat_capacity, verified, status)
-vehicle_verify_request(id, vehicle_id, owner_user_id, owner_name, id_no,
-                       driver_license_no, vehicle_license_no, status, review_note)
-```
+- `RIDE_USE_MOCK=true`：使用 `ride_domain.py` 内置内存数据，适合无数据库联调。
+- `RIDE_USE_MOCK=false`：使用 `ride_db` 真实数据，必须先执行 `sql/ride/001_init.sql`。
+- `sql/ride/002_seed.sql` 是可选演示种子。只有手动导入后，数据库模式才会出现演示订单和车辆。

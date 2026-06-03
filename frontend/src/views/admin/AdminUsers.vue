@@ -2,13 +2,13 @@
   <div class="admin-users-page">
     <section class="page-card hero-card">
       <div>
-        <div class="eyebrow">Admin Console</div>
+        <div class="eyebrow"></div>
         <h2>车主申请审核</h2>
-        <p>这里只处理车主身份认证申请。乘客封禁属于更重的风控能力，先不放在普通管理入口里。</p>
+        <p></p>
       </div>
-      <van-button size="small" plain type="primary" :loading="loading" @click="fetchUsers">
+      <!-- <van-button size="small" plain type="primary" :loading="loading" @click="fetchUsers">
         刷新
-      </van-button>
+      </van-button> -->
     </section>
 
     <section class="stat-row">

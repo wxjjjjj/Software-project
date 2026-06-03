@@ -4,10 +4,10 @@
       <div>
         <div class="eyebrow">个人中心</div>
         <h2>{{ session.username || '未命名用户' }}</h2>
-        <p>登录后默认以乘客身份使用，通过认证后可切换到车主模式。</p>
+        <!-- <p></p> -->
       </div>
       <van-tag :type="session.ownerVerified ? 'success' : 'warning'">
-        {{ session.ownerVerified ? '已具备车主资格' : '乘客' }}
+        {{ session.ownerVerified ? '司机' : '乘客' }}
       </van-tag>
     </section>
 

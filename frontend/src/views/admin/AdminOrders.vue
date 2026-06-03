@@ -56,7 +56,7 @@
         <div class="card-tags" v-if="o.tags?.length">
           <span v-for="t in o.tags" :key="t" class="mini-tag">{{ t }}</span>
         </div>
-        <div class="card-action" v-if="o.status !== 'completed' && o.status !== 'cancelled'">
+        <div class="card-action" v-if="o.status !== 'completed'">
           <button class="btn-force-cancel" @click="forceCancel(o)">强制取消</button>
         </div>
       </div>
@@ -84,11 +84,10 @@ const statusOptions = [
   { text: '已满员', value: 'full' },
   { text: '已锁单', value: 'locked' },
   { text: '已完成', value: 'completed' },
-  { text: '已取消', value: 'cancelled' },
 ]
 
 const filtered = computed(() => {
-  let list = orders.value
+  let list = orders.value.filter(o => o.status !== 'cancelled')
   if (statusFilter.value) list = list.filter(o => o.status === statusFilter.value)
   if (searchText.value) {
     const kw = searchText.value.toLowerCase()
@@ -190,7 +189,6 @@ async function forceCancel(o) {
 .order-card.s-full      { border-left-color: #f59e0b; }
 .order-card.s-locked    { border-left-color: #f97316; }
 .order-card.s-completed { border-left-color: #10b981; }
-.order-card.s-cancelled { border-left-color: #cbd5e1; opacity: .65; }
 
 .card-head {
   display: flex; align-items: center; gap: 8px;

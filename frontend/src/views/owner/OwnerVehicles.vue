@@ -20,7 +20,7 @@
     <button type="button" class="apply-card" @click="goCreateVehicle">
       <div>
         <div class="apply-title">提交新的车辆认证申请</div>
-        <div class="apply-sub">填写车辆信息与行驶证号，提交后等待管理员审核。</div>
+        <!-- <div class="apply-sub">填写车辆信息与行驶证号，提交后等待管理员审核。</div> -->
       </div>
       <span class="apply-arrow">›</span>
     </button>
@@ -29,7 +29,7 @@
       <div class="section-head">
         <div>
           <h3>我的车辆认证</h3>
-          <p>申请审核中可以撤回；审核通过后车辆将用于车主接单。</p>
+          <!-- <p>申请审核中可以撤回；审核通过后车辆将用于车主接单。</p> -->
         </div>
         <van-button size="small" plain type="primary" :loading="loading" @click="refreshVehicles">
           刷新

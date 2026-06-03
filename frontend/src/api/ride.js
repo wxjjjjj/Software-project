@@ -8,10 +8,10 @@
 function getUserId() {
   try {
     const s = JSON.parse(localStorage.getItem('session') || '{}')
-    // 优先用 userId，若 account 域还未设置则用 username，再兜底开发用值
-    return s.userId || s.username || 'dev-user-1'
+    // 优先用 account 域返回的 userId，缺失时才退到 username；不要在 DB 模式伪造 mock 用户。
+    return s.userId || s.username || ''
   } catch {
-    return 'dev-user-1'
+    return ''
   }
 }
 
@@ -36,9 +36,10 @@ function buildHeaders() {
   const s = JSON.parse(localStorage.getItem('session') || '{}')
   const headers = {
     'Content-Type': 'application/json',
-    'X-User-Id': getUserId(),
     'X-Owner-Verified': isOwnerVerified(s.ownerVerified) ? 'true' : 'false',
   }
+  const userId = getUserId()
+  if (userId) headers['X-User-Id'] = userId
   if (s.role === 'admin') headers['X-User-Role'] = 'admin'
   return headers
 }
@@ -50,6 +51,26 @@ async function req(method, path, body = null) {
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(buildErrorMessage(data, `HTTP ${res.status}`))
   return data
+}
+
+function stripCancelledOrders(payload) {
+  if (Array.isArray(payload)) {
+    return payload.filter((order) => order?.status !== 'cancelled')
+  }
+  if (Array.isArray(payload?.items)) {
+    return {
+      ...payload,
+      items: payload.items.filter((order) => order?.status !== 'cancelled'),
+    }
+  }
+  return payload
+}
+
+function rejectCancelledOrder(order) {
+  if (order?.status === 'cancelled') {
+    throw new Error('订单不存在')
+  }
+  return order
 }
 
 // ── 订单接口 ──────────────────────────────────────────────────────────────────
@@ -74,22 +95,26 @@ export const rideApi = {
 
   /** 3. 我的订单（乘客视角：发布+参与） */
   listMyOrders() {
-    return req('GET', `/orders?passenger_id=${getUserId()}`)
+    const userId = getUserId()
+    if (!userId) return Promise.resolve({ items: [] })
+    return req('GET', `/orders?passenger_id=${encodeURIComponent(userId)}`).then(stripCancelledOrders)
   },
 
   /** 3. 车主已接订单 */
   listDriverOrders() {
-    return req('GET', `/orders?owner_id=${getUserId()}`)
+    const userId = getUserId()
+    if (!userId) return Promise.resolve({ items: [] })
+    return req('GET', `/orders?owner_id=${encodeURIComponent(userId)}`).then(stripCancelledOrders)
   },
 
   /** 3. 所有订单（管理员用） */
   listAllOrders() {
-    return req('GET', '/orders')
+    return req('GET', '/orders').then(stripCancelledOrders)
   },
 
   /** 4. 订单详情 */
   getOrderDetail(orderId) {
-    return req('GET', `/orders/${orderId}`)
+    return req('GET', `/orders/${orderId}`).then(rejectCancelledOrder)
   },
 
   /** 5. 修改订单 */
@@ -177,7 +202,6 @@ export const STATUS_MAP = {
   full:      { label: '已满员', type: 'warning' },
   locked:    { label: '已锁单', type: 'primary' },
   completed: { label: '已完成', type: 'success' },
-  cancelled: { label: '已取消', type: 'default' },
 }
 
 /** 可选标签列表 */

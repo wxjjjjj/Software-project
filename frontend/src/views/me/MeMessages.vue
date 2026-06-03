@@ -6,7 +6,7 @@
 
     <div class="list-wrap">
       <van-loading v-if="loading" style="padding:40px 0;text-align:center" type="spinner" />
-      <van-empty v-else-if="!orders.length" description="暂无订单，聊天功能将在接单后可用" />
+      <van-empty v-else-if="!orders.length" description="暂无订单，聊天功能将在参与订单后可用" />
 
       <template v-else>
         <div
@@ -19,7 +19,6 @@
             <span class="card-id">订单 #{{ o.order_id }}</span>
             <van-tag v-if="o.status === 'locked'" type="primary">已锁单</van-tag>
             <van-tag v-else-if="o.status === 'completed'" type="success">已完成</van-tag>
-            <van-tag v-else-if="o.status === 'cancelled'" type="default">已取消</van-tag>
             <van-tag v-else type="warning">招募中</van-tag>
           </div>
           <div class="card-route">
@@ -77,16 +76,12 @@ onMounted(async () => {
     if (isDriver.value && verified) {
       console.log('[MeMessages] calling listDriverOrders')
       const res = await rideApi.listDriverOrders()
-      orders.value = (res.items || res || []).filter(
-        o => o.status !== 'cancelled'
-      )
+      orders.value = (res.items || res || []).filter(o => o.status !== 'cancelled')
     } else {
       console.log('[MeMessages] calling listMyOrders')
       const res = await rideApi.listMyOrders()
       console.log('[MeMessages] listMyOrders response:', res)
-      orders.value = (res.items || res || []).filter(
-        o => o.status !== 'cancelled'
-      )
+      orders.value = (res.items || res || []).filter(o => o.status !== 'cancelled')
     }
     console.log('[MeMessages] filtered orders:', orders.value.length)
   } catch (e) {

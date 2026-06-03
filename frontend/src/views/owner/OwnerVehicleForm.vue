@@ -204,7 +204,7 @@ async function hydrateCertificationFields() {
 function resolveOwnerUserId() {
   const session = readSession()
   const userId = session.userId || session.username
-  return userId ? String(userId) : 'dev-user-1'
+  return userId ? String(userId) : ''
 }
 
 function normalizePlateNoInput(value) {

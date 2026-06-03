@@ -76,7 +76,7 @@ onBeforeUnmount(() => {
 
 const roleLabel = computed(() => {
   if (session.value.role === 'admin') return '管理员'
-  if (session.value.role === 'driver') return '车主'
+  if (session.value.role === 'driver') return '司机'
   return '乘客'
 })
 
@@ -113,7 +113,7 @@ const navTitle = computed(() => {
   const path = router.currentRoute.value.path
   if (path.includes('/chat/')) return '订单聊天'
   if (path.startsWith('/admin')) return '管理员工作台'
-  if (path.startsWith('/driver')) return '车主拼车'
+  if (path.startsWith('/driver')) return '车主钱包'
   if (path.startsWith('/me')) return '我的'
   if (path.startsWith('/users')) return '用户资料'
   return '拼车出行'
@@ -131,7 +131,7 @@ const actionItems = computed(() => {
 
   const items = [
     { text: '乘客模式', key: 'passenger' },
-    { text: session.value.ownerVerified ? '车主模式' : '申请成为车主', key: 'driver' },
+    { text: session.value.ownerVerified ? '司机模式' : '申请成为车主', key: 'driver' },
     { text: '个人中心', key: 'me' }
   ]
   if (session.value.role === 'admin') {
