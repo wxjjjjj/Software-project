@@ -5,7 +5,7 @@
 <template>
   <div class="mobile-app"> <!--居中显示手机框架-->
     <section class="phone-frame"> <!--模拟手机屏幕，固定宽度（移动端最大 420px，PC 端有圆角阴影）-->
-      <van-nav-bar :title="navTitle">
+      <van-nav-bar :title="navTitle" :left-arrow="showBackArrow" @click-left="handleNavBack">
         <template #right>
           <van-popover v-model:show="showActionMenu" :actions="actionItems" @select="onActionSelect">
             <template #reference>
@@ -34,7 +34,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -55,6 +55,25 @@ function setSession(s) {
 
 const session = ref(getSession())
 
+function syncSession() {
+  session.value = getSession()
+}
+
+watch(
+  () => router.currentRoute.value.fullPath,
+  syncSession,
+)
+
+onMounted(() => {
+  window.addEventListener('storage', syncSession)
+  window.addEventListener('session-updated', syncSession)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', syncSession)
+  window.removeEventListener('session-updated', syncSession)
+})
+
 const roleLabel = computed(() => {
   if (session.value.role === 'admin') return '管理员'
   if (session.value.role === 'driver') return '车主模式'
@@ -68,8 +87,7 @@ const tabItems = computed(() => {
       { path: '/admin/users', label: '用户', icon: 'manager-o' },
       { path: '/admin/orders', label: '订单', icon: 'todo-list-o' },
       { path: '/admin/vehicle-verifications', label: '车辆审核', icon: 'logistics' },
-      { path: '/admin/feedback', label: '反馈', icon: 'chat-o' },
-      { path: '/me/profile', label: '我的', icon: 'user-o' }
+      { path: '/admin/feedback', label: '反馈', icon: 'chat-o' }
     ]
   }
 
@@ -94,6 +112,7 @@ const tabItems = computed(() => {
 
 const navTitle = computed(() => {
   const path = router.currentRoute.value.path
+  if (path.includes('/chat/')) return '订单聊天'
   if (path.startsWith('/admin')) return '管理员工作台'
   if (path.startsWith('/driver')) return '车主拼车'
   if (path.startsWith('/me')) return '我的'
@@ -101,7 +120,16 @@ const navTitle = computed(() => {
   return '拼车出行'
 })
 
+const showBackArrow = computed(() => Boolean(router.currentRoute.value.meta.backTo))
+
 const actionItems = computed(() => {
+  if (session.value.role === 'admin') {
+    return [
+      { text: '管理员工作台', key: 'admin' },
+      { text: '退出登录', key: 'logout' }
+    ]
+  }
+
   const items = [
     { text: '拼车人模式', key: 'passenger' },
     { text: session.value.ownerVerified ? '车主模式' : '申请成为车主', key: 'driver' },
@@ -124,6 +152,17 @@ function onActionSelect(action) {
     return
   }
   switchRole(action.key)
+}
+
+function handleNavBack() {
+  if (!showBackArrow.value) return
+
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  router.push(router.currentRoute.value.meta.backTo || '/')
 }
 
 //后续可以把角色切换降级为仅开发环境可见，权限以登录接口返回为准

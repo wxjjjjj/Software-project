@@ -165,6 +165,10 @@ export function reviewVehicleVerifyRequest(requestId, decision, review_note = ''
   })
 }
 
+export function withdrawVehicleVerifyRequest(requestId) {
+  return req('DELETE', `/vehicles/verify-requests/${requestId}`)
+}
+
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 
 /** 订单状态映射 */

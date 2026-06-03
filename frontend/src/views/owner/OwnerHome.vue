@@ -41,6 +41,22 @@
         </div>
         <span class="qa-arrow">›</span>
       </router-link>
+      <router-link to="/driver/certification" class="qa-card qa-cert">
+        <div class="qa-icon">🪪</div>
+        <div class="qa-info">
+          <div class="qa-title">车主认证</div>
+          <div class="qa-sub">查看资质状态与车主资料</div>
+        </div>
+        <span class="qa-arrow">›</span>
+      </router-link>
+      <router-link to="/me/vehicles" class="qa-card qa-car">
+        <div class="qa-icon">🚗</div>
+        <div class="qa-info">
+          <div class="qa-title">车辆管理</div>
+          <div class="qa-sub">新增车辆并提交车辆认证</div>
+        </div>
+        <span class="qa-arrow">›</span>
+      </router-link>
     </div>
 
     <!-- 最近接单 -->
@@ -148,6 +164,8 @@ onMounted(async () => {
 .qa-fire  { background: #fff7ed; }
 .qa-notes { background: #f0fdf4; }
 .qa-wallet { background: #eff6ff; }
+.qa-cert { background: #f8fbff; }
+.qa-car { background: #eefcf8; }
 .qa-icon  { font-size: 24px; }
 .qa-title { font-size: 14px; font-weight: 700; color: #1e293b; }
 .qa-sub   { font-size: 11px; color: #94a3b8; margin-top: 2px; }

@@ -36,6 +36,7 @@ from backend.ride.ride_domain import (
     update_vehicle,
     update_vehicle_status,
     update_vehicle_verified,
+    withdraw_vehicle_verify_request,
 )
 
 app = FastAPI(title="Ride Service", version="1.0.0")
@@ -196,6 +197,15 @@ def api_review_vehicle_verify_request(
     if x_user_role != "admin":
         raise HTTPException(status_code=403, detail="admin role required")
     return review_vehicle_verify_request(request_id, payload, x_user_id)
+
+
+@app.delete("/api/vehicles/verify-requests/{request_id}")
+def api_withdraw_vehicle_verify_request(
+    request_id: str,
+    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+):
+    """车主撤回待审核车辆认证申请"""
+    return withdraw_vehicle_verify_request(request_id, x_user_id)
 
 
 @app.put("/api/vehicles/{vehicle_id}")

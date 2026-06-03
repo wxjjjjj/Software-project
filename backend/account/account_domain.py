@@ -54,9 +54,16 @@ class UserLogin(BaseModel):
     password: str
 
 class DriverApply(BaseModel):
-    license_plate: str
-    car_model: str
-    car_color: str
+    real_name: str
+    id_card: str
+    driver_license_no: str
+    contact_phone: Optional[str] = ""
+    remark: Optional[str] = ""
+
+    # 兼容旧前端曾经传入的车辆字段；车主身份申请不再写账号域 cars 表。
+    license_plate: Optional[str] = None
+    car_model: Optional[str] = None
+    car_color: Optional[str] = None
 
 class StatusUpdate(BaseModel):
     userId: int

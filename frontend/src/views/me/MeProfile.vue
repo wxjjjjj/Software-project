@@ -15,8 +15,8 @@
       <router-link to="/me/driver-application" class="action-row">
         <span>车主身份认证</span><b>></b>
       </router-link>
-      <router-link to="/me/vehicles" class="action-row">
-        <span>我的车辆</span><b>></b>
+      <router-link :to="session.ownerVerified ? '/me/vehicles' : '/me/driver-application'" class="action-row">
+        <span>{{ session.ownerVerified ? '我的车辆' : '车辆认证（先完成车主认证）' }}</span><b>></b>
       </router-link>
       <router-link v-if="session.ownerVerified" to="/driver/wallet" class="action-row">
         <span>车主钱包</span><b>></b>
@@ -29,9 +29,6 @@
       </router-link>
       <router-link to="/me/feedback" class="action-row">
         <span>我的反馈</span><b>></b>
-      </router-link>
-      <router-link to="/me/security" class="action-row">
-        <span>账号安全</span><b>></b>
       </router-link>
     </section>
   </div>

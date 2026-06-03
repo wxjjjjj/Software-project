@@ -1,8 +1,8 @@
 <template>
   <div class="verify-page">
     <section class="page-card">
-      <h2>车主-车辆认证资料提交</h2>
-      <p class="hint">请填写真实信息，管理员审核通过后车辆将显示为已认证。</p>
+      <h2>车辆认证资料提交</h2>
+      <p class="hint">用于补交历史车辆的认证资料。新增车辆时会自动提交认证申请，无需再进入本页。</p>
 
       <van-form @submit="onSubmit" class="verify-form">
         <van-notice-bar
@@ -151,6 +151,27 @@ function normalizeVehicle(item) {
   }
 }
 
+function readSession() {
+  try {
+    return JSON.parse(localStorage.getItem('session') || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function hydrateCertificationFields() {
+  const session = readSession()
+  try {
+    const saved = JSON.parse(localStorage.getItem(`driver-cert-${session.userId || 'anonymous'}`) || '{}')
+    form.owner_name = form.owner_name || saved.real_name || ''
+    form.id_no = form.id_no || saved.id_card || ''
+    form.driver_license_no = form.driver_license_no || saved.driver_license_no || ''
+    form.contact_phone = form.contact_phone || saved.contact_phone || ''
+  } catch {
+    // 用户仍可手动填写。
+  }
+}
+
 async function loadVehicles() {
   try {
     const data = await fetchOwnerVehicles()
@@ -208,7 +229,10 @@ function goBackToVehicles() {
   router.push('/me/vehicles')
 }
 
-onMounted(loadVehicles)
+onMounted(async () => {
+  hydrateCertificationFields()
+  await loadVehicles()
+})
 </script>
 
 <style scoped>

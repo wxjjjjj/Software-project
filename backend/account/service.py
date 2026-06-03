@@ -10,6 +10,9 @@ class AccountService:
             "user": {
                 "userId": 1,
                 "username": "admin",
+                "real_name": "系统管理员",
+                "phone": "10000000000",
+                "id_card": "000000000000000000",
                 "role": "admin",
                 "account_status": "active",
                 "passenger": {"score": 100, "status": "active"},
@@ -21,6 +24,9 @@ class AccountService:
             "user": {
                 "userId": 2,
                 "username": "yxx",
+                "real_name": "王怡心",
+                "phone": "18398173617",
+                "id_card": "510923200502178547",
                 "role": "driver",
                 "account_status": "active",
                 "passenger": {"score": 100, "status": "active"},
@@ -32,6 +38,9 @@ class AccountService:
             "user": {
                 "userId": 3,
                 "username": "111",
+                "real_name": "李四",
+                "phone": "13988889999",
+                "id_card": "110101199202025678",
                 "role": "passenger",
                 "account_status": "active",
                 "passenger": {"score": 100, "status": "active"},
@@ -43,6 +52,9 @@ class AccountService:
             "user": {
                 "userId": 998,
                 "username": "driver1",
+                "real_name": "测试车主",
+                "phone": "13800000000",
+                "id_card": "110101199001011234",
                 "role": "driver",
                 "account_status": "active",
                 "passenger": {"score": 100, "status": "active"},
@@ -64,6 +76,15 @@ class AccountService:
             })
         items.sort(key=lambda item: item["userId"])
         return {"items": items}
+
+    @staticmethod
+    def _find_mock_user_by_id(user_id):
+        user_id_text = str(user_id)
+        for mock_user in AccountService.MOCK_USERS.values():
+            user = mock_user["user"]
+            if str(user.get("userId")) == user_id_text:
+                return user
+        return None
 
     @staticmethod
     def is_mock():
@@ -124,15 +145,19 @@ class AccountService:
     @staticmethod
     def get_user_profile(user_id):
         if AccountService.is_mock():
-            # 这里的字段必须写全，否则前端收不到状态
+            user = AccountService._find_mock_user_by_id(user_id)
+            if not user:
+                return None
             return {
                 "id": user_id,
-                "username": "yxx",
-                "real_name": "测试用户",
-                "phone": "13800000000",
-                "driver_status": "approved", # 确保 Mock 这里是 approved
-                "passenger_score": 100,
-                "driver_score": 100
+                "username": user.get("username"),
+                "real_name": user.get("real_name", user.get("username", "")),
+                "phone": user.get("phone", ""),
+                "id_card": user.get("id_card", ""),
+                "account_status": user.get("account_status", "active"),
+                "driver_status": user.get("driver", {}).get("status", "unapplied"),
+                "passenger_score": user.get("passenger", {}).get("score", 100),
+                "driver_score": user.get("driver", {}).get("score", 100),
             }
 
         conn = get_db_connection()
@@ -146,13 +171,29 @@ class AccountService:
 
     @staticmethod
     def submit_driver_application(user_id, car_data):
-        if AccountService.is_mock(): return True
+        if AccountService.is_mock():
+            user = AccountService._find_mock_user_by_id(user_id)
+            if not user:
+                return False
+            user.setdefault("driver", {})["status"] = "pending"
+            user["driver_application"] = {
+                "real_name": car_data.real_name,
+                "id_card": car_data.id_card,
+                "driver_license_no": car_data.driver_license_no,
+                "contact_phone": car_data.contact_phone,
+                "remark": car_data.remark,
+            }
+            return True
         conn = get_db_connection()
         try:
             with conn.cursor() as cursor:
+                cursor.execute("SELECT id, driver_status FROM users WHERE id = %s", (user_id,))
+                user = cursor.fetchone()
+                if not user:
+                    return False
+                if user.get("driver_status") in ("approved", "active"):
+                    return True
                 cursor.execute("UPDATE users SET driver_status = 'pending' WHERE id = %s", (user_id,))
-                sql = "INSERT INTO cars (user_id, license_plate, car_model, car_color) VALUES (%s, %s, %s, %s)"
-                cursor.execute(sql, (user_id, car_data.license_plate, car_data.car_model, car_data.car_color))
                 conn.commit()
                 return True
         except Exception:

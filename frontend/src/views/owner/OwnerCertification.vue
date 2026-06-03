@@ -1,273 +1,439 @@
 <template>
-  <div class="certification-container">
-    <div class="page-card">
+  <div class="driver-cert-page">
+    <section class="page-card hero-card">
+      <div class="eyebrow">Owner Verification</div>
       <h2>车主认证中心</h2>
+      <p class="page-hint">先提交车主个人资质，管理员通过后，再新增车辆并进入车辆认证审核。</p>
 
-      <!-- 0. 加载状态 -->
-      <div v-if="status === 'loading'" class="status-box">
-        <div class="loader"></div>
-        <p>正在同步账号状态...</p>
+      <div class="flow-card">
+        <div class="flow-step" :class="{ active: status === 'unapplied', done: isApplied }">
+          <span>1</span>
+          <b>个人资质</b>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-step" :class="{ active: isApproved }">
+          <span>2</span>
+          <b>新增车辆</b>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-step" :class="{ active: isApproved }">
+          <span>3</span>
+          <b>车辆审核</b>
+        </div>
+      </div>
+    </section>
+
+    <section v-if="loadingProfile" class="page-card state-card">
+      <van-loading type="spinner" color="#165DFF">正在同步账号状态...</van-loading>
+    </section>
+
+    <section v-else-if="status === 'unapplied'" class="page-card form-card">
+      <h3>提交车主个人资质</h3>
+      <p class="hint">请填写真实身份与驾驶证信息。通过后才会开放车辆登记和接单能力。</p>
+
+      <div class="form-item">
+        <label>真实姓名</label>
+        <input v-model.trim="form.real_name" placeholder="请输入真实姓名" />
       </div>
 
-      <!-- 情况 1：未申请 - 显示认证表单 -->
-      <div v-else-if="status === 'unapplied'" class="auth-form">
-        <p class="tips">请填写您的车辆信息，管理员将在 1-3 个工作日内完成审核。</p>
-        <div class="form-item">
-          <label>车牌号码</label>
-          <input v-model="form.license_plate" placeholder="如：沪A88888" />
-        </div>
-        <div class="form-item">
-          <label>品牌型号</label>
-          <input v-model="form.car_model" placeholder="如：特斯拉 Model 3" />
-        </div>
-        <div class="form-item">
-          <label>车身颜色</label>
-          <input v-model="form.car_color" placeholder="如：黑色" />
-        </div>
-        <div class="form-item">
-          <label>座位数</label>
-          <input v-model="form.seats" placeholder="如：5" />
-        </div>
-        <button class="submit-btn" @click="handleApply" :disabled="loading">
-          {{ loading ? '提交中...' : '提交认证申请' }}
-        </button>
+      <div class="form-item">
+        <label>身份证号</label>
+        <input v-model.trim="form.id_card" placeholder="请输入身份证号" />
       </div>
 
-      <!-- 情况 2：审核中 - 显示等待提示 -->
-      <div v-else-if="status === 'pending'" class="status-box pending">
-        <div class="icon">⏳</div>
-        <h3>认证审核中</h3>
-        <p>您的资料已提交，请耐心等待管理员审核。</p>
-        <button class="refresh-btn-small" @click="fetchStatus">刷新进度</button>
+      <div class="form-item">
+        <label>驾驶证号</label>
+        <input v-model.trim="form.driver_license_no" placeholder="请输入驾驶证号" />
       </div>
 
-      <!-- 情况 3：已通过 - 变身为“个人中心”，展示资料和名下车辆 -->
-      <div v-else-if="status === 'approved' || status === 'active'" class="status-box success">
-        <div class="icon-success">✔️</div>
-        <h3>认证已通过</h3>
-        
-        <div class="user-profile-section">
-          <h4>个人信息</h4>
-          <div class="info-row">
-            <span>拼车人信誉：</span>
-            <b :class="{ 'text-red': profile.passenger_score < 60 }">{{ profile.passenger_score }} 分</b>
-          </div>
-          <div class="info-row">
-            <span>车主信誉：</span>
-            <b :class="{ 'text-red': profile.driver_score < 60 }">{{ profile.driver_score }} 分</b>
-          </div>
-          <div class="info-row">
-            <span>账号状态：</span>
-            <span class="status-tag active">{{ profile.account_status === 'active' ? '正常' : '限制中' }}</span>
-          </div>
+      <div class="form-item">
+        <label>联系电话</label>
+        <input v-model.trim="form.contact_phone" placeholder="用于管理员审核联系，可选" />
+      </div>
+
+      <div class="form-item">
+        <label>补充说明</label>
+        <textarea v-model.trim="form.remark" rows="3" placeholder="可填写驾龄、常用路线等信息，可选"></textarea>
+      </div>
+
+      <van-button type="primary" block :loading="submitting" @click="submitApplication">
+        提交车主认证申请
+      </van-button>
+    </section>
+
+    <section v-else-if="status === 'pending'" class="page-card state-card">
+      <van-tag type="warning" size="large">审核中</van-tag>
+      <h3>车主申请已提交</h3>
+      <p class="hint">请等待管理员在“用户管理”中审核。审核通过后，刷新本页即可继续新增车辆。</p>
+      <div class="action-grid">
+        <van-button type="primary" plain block :loading="loadingProfile" @click="loadProfile">
+          刷新审核状态
+        </van-button>
+        <van-button type="default" plain block to="/me/profile">
+          返回个人中心
+        </van-button>
+      </div>
+    </section>
+
+    <section v-else-if="isApproved" class="page-card state-card">
+      <van-tag type="success" size="large">已通过</van-tag>
+      <h3>已具备车主资格</h3>
+      <p class="hint">现在可以新增车辆。新增车辆时会同时提交车辆认证资料，提交后等待管理员在“车辆审核”中处理。</p>
+
+      <div class="info-panel">
+        <div class="info-row">
+          <span>真实姓名</span>
+          <b>{{ profile.real_name || form.real_name || '-' }}</b>
         </div>
-
-        <div class="vehicle-list-section">
-          <h4>名下车辆信息</h4>
-          <div v-if="vehicles.length === 0" class="no-data">未查得关联车辆</div>
-          <div v-for="car in vehicles" :key="car.id" class="car-card">
-            <div class="car-main">
-              <span class="plate">{{ car.license_plate }}</span>
-              <span class="model">{{ car.car_model }} ({{ car.car_color }})</span>
-            </div>
-          </div>
+        <div class="info-row">
+          <span>车主信誉</span>
+          <b>{{ profile.driver_score ?? 100 }} 分</b>
         </div>
-        
-        <button class="home-btn" @click="handleEnterDriverHome">进入车主首页</button>
+        <div class="info-row">
+          <span>名下车辆</span>
+          <b>{{ vehicles.length }} 辆</b>
+        </div>
       </div>
 
-      <!-- 情况 4：被封禁 -->
-      <div v-else-if="status === 'banned'" class="status-box banned">
-        <div class="icon">🚫</div>
-        <h3>车主权限已封禁</h3>
-        <p>因信誉分过低或违规，您的车主身份已被停用。</p>
-        <p class="score-tip">当前车主评分：{{ profile.driver_score }}</p>
+      <div class="action-grid">
+        <van-button type="primary" block @click="goVehicleCenter">
+          {{ vehicles.length ? '管理车辆认证' : '新增车辆并提交认证' }}
+        </van-button>
+        <van-button plain type="primary" block @click="enterDriverMode">
+          进入车主首页
+        </van-button>
       </div>
-    </div>
+    </section>
+
+    <section v-else-if="status === 'banned'" class="page-card state-card">
+      <van-tag type="danger" size="large">已停用</van-tag>
+      <h3>车主权限已停用</h3>
+      <p class="hint">当前账号暂不能使用车主能力，请联系管理员处理。</p>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { showNotify } from 'vant'
+import { fetchOwnerVehicles } from '../../api/ride'
 
 const router = useRouter()
-const status = ref('loading')
-const loading = ref(false)
-const profile = ref({})  // 存储个人资料（信誉分等）
-const vehicles = ref([]) // 存储名下车辆
+const loadingProfile = ref(true)
+const submitting = ref(false)
+const status = ref('unapplied')
+const profile = ref({})
+const vehicles = ref([])
 
 const form = ref({
-  license_plate: '',
-  car_model: '',
-  car_color: '',
-  seats: ''
+  real_name: '',
+  id_card: '',
+  driver_license_no: '',
+  contact_phone: '',
+  remark: ''
 })
 
-// 获取数据：包括状态、资料和车辆列表
-const fetchStatus = async () => {
-  const session = JSON.parse(localStorage.getItem('session') || '{}')
+const isApplied = computed(() => status.value !== 'unapplied' && status.value !== 'loading')
+const isApproved = computed(() => ['approved', 'active'].includes(status.value))
+
+function getSession() {
+  try {
+    return JSON.parse(localStorage.getItem('session') || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveSession(session) {
+  localStorage.setItem('session', JSON.stringify(session))
+  window.dispatchEvent(new Event('session-updated'))
+}
+
+function certStorageKey(userId) {
+  return `driver-cert-${userId || 'anonymous'}`
+}
+
+function loadStoredCertification(userId) {
+  try {
+    return JSON.parse(localStorage.getItem(certStorageKey(userId)) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function saveStoredCertification(userId) {
+  localStorage.setItem(certStorageKey(userId), JSON.stringify(form.value))
+}
+
+function hydrateForm(data = {}) {
+  const session = getSession()
+  const saved = loadStoredCertification(session.userId)
+  form.value = {
+    real_name: saved.real_name || data.real_name || '',
+    id_card: saved.id_card || data.id_card || '',
+    driver_license_no: saved.driver_license_no || '',
+    contact_phone: saved.contact_phone || data.phone || '',
+    remark: saved.remark || ''
+  }
+}
+
+async function loadVehiclesIfAllowed() {
+  vehicles.value = []
+  if (!isApproved.value) return
+
+  try {
+    const data = await fetchOwnerVehicles()
+    vehicles.value = Array.isArray(data.items) ? data.items : []
+  } catch {
+    vehicles.value = []
+  }
+}
+
+async function loadProfile() {
+  const session = getSession()
   if (!session.userId) {
     router.push('/login')
     return
   }
-  
+
+  loadingProfile.value = true
   try {
-    // 1. 获取个人详细资料（含分数和认证状态）
-    const resProfile = await fetch(`/api/users/profile/${session.userId}`)
-    if (resProfile.ok) {
-      const data = await resProfile.json()
-      profile.value = data
-      status.value = data.driver_status || 'unapplied'
+    const res = await fetch(`/api/users/profile/${session.userId}`)
+    if (!res.ok) throw new Error('profile load failed')
 
-      // 同步本地 Session 权限
-      if ((status.value === 'approved' || status.value === 'active') && !session.ownerVerified) {
-        session.ownerVerified = true
-        session.role = 'driver'
-        localStorage.setItem('session', JSON.stringify(session))
-      }
+    const data = await res.json()
+    profile.value = data
+    status.value = data.driver_status || 'unapplied'
+    hydrateForm(data)
+
+    if (isApproved.value && !session.ownerVerified) {
+      session.ownerVerified = true
+      saveSession(session)
     }
 
-    // 2. 如果是车主或审核中，获取车辆列表
-    if (status.value !== 'unapplied') {
-      const resCars = await fetch(`/api/users/driver/cars/${session.userId}`)
-      if (resCars.ok) {
-        vehicles.value = await resCars.json()
-      }
-    }
-  } catch (err) {
-    console.error('获取认证状态失败', err)
-    status.value = 'unapplied'
+    await loadVehiclesIfAllowed()
+  } catch {
+    status.value = session.ownerVerified ? 'approved' : 'unapplied'
+    hydrateForm()
+    await loadVehiclesIfAllowed()
+  } finally {
+    loadingProfile.value = false
   }
 }
 
-// 提交申请
-const handleApply = async () => {
-  if (!form.value.license_plate || !form.value.car_model) {
-    alert('请填写完整的车辆信息')
+function validateApplication() {
+  if (!form.value.real_name || !form.value.id_card || !form.value.driver_license_no) {
+    return '请填写真实姓名、身份证号和驾驶证号'
+  }
+  if (!/^\d{17}[\dXx]$/.test(form.value.id_card)) {
+    return '身份证号格式不正确'
+  }
+  return ''
+}
+
+async function submitApplication() {
+  const message = validateApplication()
+  if (message) {
+    showNotify({ type: 'warning', message })
     return
   }
 
-  const session = JSON.parse(localStorage.getItem('session') || '{}')
-  loading.value = true
-  
+  const session = getSession()
+  if (!session.userId) {
+    router.push('/login')
+    return
+  }
+
+  submitting.value = true
   try {
     const res = await fetch(`/api/users/driver/apply/${session.userId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form.value)
     })
-
-    if (res.ok) {
-      alert('申请提交成功！请等待管理员审核')
-      status.value = 'pending'
-      fetchStatus() // 刷新列表
-    } else {
-      alert('提交失败，请检查内容')
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      throw new Error(data.detail || '申请提交失败')
     }
-  } catch (err) {
-    alert('网络错误')
+
+    saveStoredCertification(session.userId)
+    session.ownerVerified = false
+    saveSession(session)
+    status.value = 'pending'
+    showNotify({ type: 'success', message: '车主认证申请已提交' })
+  } catch (error) {
+    showNotify({ type: 'danger', message: error.message || '申请提交失败' })
   } finally {
-    loading.value = false
+    submitting.value = false
   }
 }
 
-// 进入车主首页（带状态刷新）
-const handleEnterDriverHome = () => {
-  const session = JSON.parse(localStorage.getItem('session') || '{}')
-  
-  // 更新状态
+function goVehicleCenter() {
+  router.push('/me/vehicles')
+}
+
+function enterDriverMode() {
+  const session = getSession()
   session.role = 'driver'
   session.ownerVerified = true
-  localStorage.setItem('session', JSON.stringify(session))
-  
-  // 跳转即可，不需要 reload()
-  // Layout.vue 会在路由跳转后检测到 session 变化并更新菜单
+  saveSession(session)
   router.push('/driver/home')
 }
 
-onMounted(fetchStatus)
+onMounted(loadProfile)
 </script>
 
 <style scoped>
-/* 容器及卡片框架 */
-.certification-container { padding: 20px; display: flex; justify-content: center; background: #f8f9fa; min-height: 80vh; }
-.page-card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 450px; }
-
-/* 统一大标题样式 */
-h2 { text-align: center; margin-bottom: 25px; font-size: 20px; font-weight: 700; color: #1e293b; }
-
-/* 统一状态标题 */
-h3 { font-size: 16px; font-weight: 800; color: #1e293b; margin-bottom: 10px; }
-
-/* 统一模块小标题 */
-h4 { margin: 0 0 10px 0; color: #94a3b8; font-size: 13px; font-weight: 700; text-transform: uppercase; }
-
-/* 提示条 */
-.tips { color: #f97316; background: #fff7ed; border: 1px solid #ffedd5; padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 20px; }
-
-/* 表单排版统一 */
-.form-item { margin-bottom: 15px; }
-.form-item label { display: block; margin-bottom: 6px; font-weight: 700; font-size: 14px; color: #1e293b; }
-.form-item input { 
-  width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; 
-  box-sizing: border-box; font-size: 14px; color: #1e293b; transition: border-color 0.2s;
-}
-.form-item input:focus { border-color: #165DFF; outline: none; }
-.form-item input::placeholder { color: #94a3b8; }
-
-/* 按钮统一 */
-.submit-btn { 
-  width: 100%; padding: 14px; background: #165DFF; color: white; border: none; 
-  border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 15px; margin-top: 10px; transition: opacity 0.2s;
-}
-.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.submit-btn:active:not(:disabled) { transform: scale(0.98); }
-
-.home-btn { 
-  margin-top: 25px; width: 100%; padding: 14px; background: #10b981; color: white; 
-  border: none; border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 15px; 
-}
-.home-btn:active { transform: scale(0.98); }
-
-.refresh-btn-small { 
-  background: white; border: 1px solid #e2e8f0; color: #64748b; padding: 6px 14px; 
-  border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; margin-top: 10px; 
-}
-.refresh-btn-small:active { background: #f8fafc; }
-
-/* 状态展示区样式 */
-.status-box { text-align: center; padding: 30px 0; }
-.status-box p { font-size: 13px; color: #64748b; margin: 0; }
-.icon { font-size: 48px; margin-bottom: 15px; }
-.icon-success { font-size: 48px; color: #10b981; margin-bottom: 10px; }
-
-/* 个人信息与车辆列表区块统一 */
-.user-profile-section, .vehicle-list-section {
-  text-align: left; background: #f8fafc; border: 1px solid #f1f5f9; 
-  padding: 15px; border-radius: 12px; margin-top: 15px;
-}
-.info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: #64748b; }
-.info-row b { font-weight: 800; color: #1e293b; }
-
-.no-data { font-size: 13px; color: #94a3b8; text-align: center; padding: 10px 0; }
-.car-card { background: white; border: 1px solid #e2e8f0; padding: 12px; border-radius: 12px; margin-bottom: 8px; }
-.car-main { display: flex; align-items: baseline; }
-.plate { font-weight: 700; font-size: 15px; color: #1e293b; margin-right: 10px; }
-.model { color: #64748b; font-size: 12px; }
-
-/* 辅助与状态类 */
-.text-red { color: #ef4444 !important; }
-.score-tip { font-size: 12px; color: #ef4444 !important; margin-top: 8px; font-weight: 700; }
-.status-tag.active { 
-  background: #eff6ff; color: #165DFF; padding: 2px 8px; 
-  border-radius: 6px; font-size: 11px; font-weight: 700; 
+.driver-cert-page {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 24px;
 }
 
-/* 简单的 loading 动画 */
-.loader {
-  border: 3px solid #f1f5f9; border-radius: 50%; border-top: 3px solid #165DFF;
-  width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 0 auto 15px;
+.hero-card,
+.form-card,
+.state-card {
+  display: grid;
+  gap: 12px;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.eyebrow {
+  color: #165dff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+h2,
+h3 {
+  margin: 0;
+  color: #172033;
+}
+
+h2 {
+  font-size: 22px;
+}
+
+h3 {
+  font-size: 18px;
+}
+
+.page-hint,
+.hint {
+  margin: 0;
+  color: #65758b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.flow-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dce8ff;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.flow-step {
+  min-width: 62px;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.flow-step span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #eaf2ff;
+  color: #6b88b8;
+}
+
+.flow-step.active,
+.flow-step.done {
+  color: #165dff;
+}
+
+.flow-step.active span,
+.flow-step.done span {
+  background: #165dff;
+  color: #fff;
+}
+
+.flow-line {
+  flex: 1;
+  height: 1px;
+  background: #dbe7ff;
+}
+
+.form-item {
+  display: grid;
+  gap: 6px;
+}
+
+.form-item label {
+  color: #52657d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.form-item input,
+.form-item textarea {
+  width: 100%;
+  border: 1px solid #d8e2f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #172033;
+  font-size: 14px;
+  outline: none;
+}
+
+.form-item input:focus,
+.form-item textarea:focus {
+  border-color: #165dff;
+  box-shadow: 0 0 0 2px rgba(22, 93, 255, 0.1);
+}
+
+.state-card {
+  text-align: center;
+  justify-items: center;
+  padding: 24px 16px;
+}
+
+.info-panel {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #edf3ff;
+  background: #f8fbff;
+  text-align: left;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.info-row b {
+  color: #172033;
+}
+
+.action-grid {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
 </style>

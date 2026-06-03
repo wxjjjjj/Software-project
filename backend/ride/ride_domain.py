@@ -400,7 +400,7 @@ def _as_bool(value) -> bool:
 def _format_vehicle(row: dict) -> dict:
     verified = _as_bool(row.get("verified", False))
     verify_status = row.get("verify_status") or ("approved" if verified else "unsubmitted")
-    return {
+    item = {
         "vehicle_id": str(row["vehicle_id"]),
         "owner_id": str(row["owner_id"]),
         "plate_no": row["plate_no"],
@@ -411,6 +411,9 @@ def _format_vehicle(row: dict) -> dict:
         "verify_status": verify_status,
         "status": row["status"],
     }
+    if row.get("pending_request_id") is not None:
+        item["pending_request_id"] = str(row["pending_request_id"])
+    return item
 
 
 def _format_vehicle_verify_request(row: dict) -> dict:
@@ -954,7 +957,13 @@ def list_vehicles(owner_id: str) -> dict:
                                       WHERE r.vehicle_id=v.id AND r.status='pending'
                                     ) THEN 'pending'
                                     ELSE 'unsubmitted'
-                                  END AS verify_status
+                                  END AS verify_status,
+                                  (
+                                    SELECT r.id FROM vehicle_verify_request r
+                                    WHERE r.vehicle_id=v.id AND r.status='pending'
+                                    ORDER BY r.created_at DESC
+                                    LIMIT 1
+                                  ) AS pending_request_id
                            FROM vehicle v
                            WHERE v.owner_user_id = %s
                            ORDER BY v.created_at DESC""",
@@ -974,11 +983,20 @@ def list_vehicles(owner_id: str) -> dict:
             req["vehicle_id"] == vehicle["vehicle_id"] and req["status"] == "pending"
             for req in _VEHICLE_VERIFY_REQUESTS.values()
         )
+        pending_request = next(
+            (
+                req for req in _VEHICLE_VERIFY_REQUESTS.values()
+                if req["vehicle_id"] == vehicle["vehicle_id"] and req["status"] == "pending"
+            ),
+            None,
+        )
         item["verify_status"] = (
             "approved"
             if _as_bool(item.get("verified", False))
             else "pending" if has_pending_request else "unsubmitted"
         )
+        if pending_request:
+            item["pending_request_id"] = pending_request["request_id"]
         vehicles.append(item)
     return {"items": vehicles}
 
@@ -1285,6 +1303,65 @@ def submit_vehicle_verify_request(
         "request_id": request_id,
         "vehicle_id": vehicle_id,
         "status": "pending",
+    }
+
+
+def withdraw_vehicle_verify_request(request_id: str, owner_id: str) -> dict:
+    """Withdraw a pending vehicle verification request and remove its unverified vehicle."""
+    if not RIDE_USE_MOCK:
+        try:
+            with get_ride_conn() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """SELECT r.id, r.vehicle_id, r.owner_user_id, r.status,
+                                  v.verified
+                           FROM vehicle_verify_request r
+                           JOIN vehicle v ON v.id = r.vehicle_id
+                           WHERE r.id=%s""",
+                        (request_id,),
+                    )
+                    request = cursor.fetchone()
+                    if not request:
+                        raise HTTPException(status_code=404, detail="verification request not found")
+                    if str(request["owner_user_id"]) != str(owner_id):
+                        raise HTTPException(status_code=403, detail="no permission for this request")
+                    if request["status"] != "pending":
+                        raise HTTPException(status_code=409, detail="only pending request can be withdrawn")
+                    if _as_bool(request.get("verified", 0)):
+                        raise HTTPException(status_code=409, detail="verified vehicle cannot be withdrawn")
+
+                    cursor.execute("DELETE FROM vehicle_verify_request WHERE id=%s", (request_id,))
+                    cursor.execute("DELETE FROM vehicle WHERE id=%s AND verified=0", (request["vehicle_id"],))
+                    return {
+                        "message": "vehicle verification request withdrawn",
+                        "request_id": str(request_id),
+                        "vehicle_id": str(request["vehicle_id"]),
+                    }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"db error: {exc}") from exc
+
+    request = _VEHICLE_VERIFY_REQUESTS.get(request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="verification request not found")
+    if str(request["owner_user_id"]) != str(owner_id):
+        raise HTTPException(status_code=403, detail="no permission for this request")
+    if request["status"] != "pending":
+        raise HTTPException(status_code=409, detail="only pending request can be withdrawn")
+
+    vehicle_id = request["vehicle_id"]
+    vehicle = _VEHICLES.get(vehicle_id)
+    if vehicle and _as_bool(vehicle.get("verified", False)):
+        raise HTTPException(status_code=409, detail="verified vehicle cannot be withdrawn")
+
+    del _VEHICLE_VERIFY_REQUESTS[request_id]
+    if vehicle_id in _VEHICLES:
+        del _VEHICLES[vehicle_id]
+    return {
+        "message": "vehicle verification request withdrawn",
+        "request_id": request_id,
+        "vehicle_id": vehicle_id,
     }
 
 

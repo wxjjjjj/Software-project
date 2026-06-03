@@ -1,479 +1,313 @@
 <template>
   <div class="admin-users-page">
-    <section class="page-hero">
-      <div class="hero-copy">
-        <p class="hero-eyebrow">Admin Console</p>
-        <h1>用户管理</h1>
-        <p class="hero-subtitle">查看账号状态，并进行乘客/车主身份管理。</p>
+    <section class="page-card hero-card">
+      <div>
+        <div class="eyebrow">Admin Console</div>
+        <h2>车主申请审核</h2>
+        <p>这里只处理车主身份认证申请。乘客封禁属于更重的风控能力，先不放在普通管理入口里。</p>
       </div>
+      <van-button size="small" plain type="primary" :loading="loading" @click="fetchUsers">
+        刷新
+      </van-button>
+    </section>
 
-      <div class="hero-actions">
-        <div class="count-card">
-          <span class="count-label">当前账号</span>
-          <strong>{{ userList.length }}</strong>
-        </div>
-        <button class="refresh-btn" :disabled="loading" @click="fetchUsers">
-          <span class="refresh-icon">↻</span>
-          {{ loading ? '刷新中' : '刷新' }}
-        </button>
+    <section class="stat-row">
+      <div class="stat-card">
+        <span>待审核</span>
+        <b>{{ pendingUsers.length }}</b>
+      </div>
+      <div class="stat-card">
+        <span>已通过</span>
+        <b>{{ approvedCount }}</b>
+      </div>
+      <div class="stat-card">
+        <span>全部账号</span>
+        <b>{{ manageableUsers.length }}</b>
       </div>
     </section>
 
-    <section v-if="userList.length" class="user-list">
-      <article
-        v-for="(user, index) in userList"
-        :key="user.userId"
-        class="user-card"
-        :style="{ animationDelay: `${index * 0.04}s` }"
-      >
-        <div class="user-card-head">
+    <section class="page-card">
+      <div class="section-head">
+        <h3>待审核申请</h3>
+        <span>{{ pendingUsers.length }} 条</span>
+      </div>
+
+      <van-loading v-if="loading" class="page-loading" type="spinner" color="#165DFF" />
+      <van-empty v-else-if="pendingUsers.length === 0" description="暂无待审核车主申请" />
+
+      <div v-else class="review-list">
+        <article v-for="user in pendingUsers" :key="user.userId" class="review-card">
           <div class="user-main">
-            <div class="user-name-row">
-              <h2>{{ user.username }}</h2>
-              <span v-if="user.username === 'admin'" class="admin-badge">系统管理员</span>
+            <div>
+              <div class="user-name">{{ user.username }}</div>
+              <div class="user-id">用户 ID：{{ user.userId }}</div>
             </div>
-            <div class="user-id">ID #{{ user.userId }}</div>
+            <van-tag type="warning">审核中</van-tag>
           </div>
 
-          <div v-if="user.username === 'admin'" class="system-lock">系统保留账号</div>
-        </div>
-
-        <div class="status-panel">
-          <div class="status-item">
-            <span class="status-label">乘客身份</span>
-            <span :class="['status-chip', user.passenger_status]">
-              {{ user.passenger_status === 'active' ? '正常' : '已封禁' }}
-            </span>
+          <div class="actions">
+            <van-button
+              size="small"
+              type="success"
+              :loading="operatingId === user.userId"
+              @click="reviewDriver(user, 'approved')"
+            >
+              通过
+            </van-button>
+            <van-button
+              size="small"
+              type="danger"
+              plain
+              :loading="operatingId === user.userId"
+              @click="reviewDriver(user, 'unapplied')"
+            >
+              驳回
+            </van-button>
           </div>
-
-          <div class="status-item">
-            <span class="status-label">车主身份</span>
-            <span :class="['status-chip', user.driver_status]">
-              {{ getDriverStatusText(user.driver_status) }}
-            </span>
-          </div>
-        </div>
-
-        <div v-if="user.username !== 'admin'" class="action-panel">
-          <button
-            class="action-btn danger-soft"
-            @click="updateStatus(user.userId, 'passenger', user.passenger_status === 'active' ? 'banned' : 'active')"
-          >
-            {{ user.passenger_status === 'active' ? '封禁乘客' : '解封乘客' }}
-          </button>
-
-          <button
-            v-if="user.driver_status !== 'unapplied' && user.driver_status !== 'pending'"
-            class="action-btn"
-            :class="isDriverEnabled(user.driver_status) ? 'danger-soft' : 'success-soft'"
-            @click="updateStatus(user.userId, 'driver', isDriverEnabled(user.driver_status) ? 'banned' : 'active')"
-          >
-            {{ isDriverEnabled(user.driver_status) ? '封禁车主' : '解封车主' }}
-          </button>
-        </div>
-      </article>
+        </article>
+      </div>
     </section>
 
-    <section v-else-if="!loading" class="empty-state">
-      <div class="empty-icon">◎</div>
-      <h3>还没有可展示的用户</h3>
-      <p>如果你刚启动服务，可以点一下刷新重新拉取数据。</p>
+    <section class="page-card">
+      <div class="section-head">
+        <h3>用户概览</h3>
+        <span>只读</span>
+      </div>
+
+      <div class="compact-list">
+        <article v-for="user in manageableUsers" :key="user.userId" class="compact-row">
+          <div>
+            <div class="compact-name">{{ user.username }}</div>
+            <div class="compact-id">ID #{{ user.userId }}</div>
+          </div>
+          <van-tag :type="driverTagType(user.driver_status)">
+            {{ driverStatusText(user.driver_status) }}
+          </van-tag>
+        </article>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { showConfirmDialog, showNotify } from 'vant'
 
 const userList = ref([])
 const loading = ref(false)
+const operatingId = ref(null)
+
+const manageableUsers = computed(() => userList.value.filter((user) => user.username !== 'admin'))
+const pendingUsers = computed(() => manageableUsers.value.filter((user) => user.driver_status === 'pending'))
+const approvedCount = computed(() =>
+  manageableUsers.value.filter((user) => ['approved', 'active'].includes(user.driver_status)).length
+)
+
+onMounted(fetchUsers)
 
 async function fetchUsers() {
   loading.value = true
   try {
     const res = await fetch('/api/users/admin/users')
-    if (res.ok) {
-      const data = await res.json()
-      userList.value = Array.isArray(data.items) ? data.items : []
-    }
-  } catch (err) {
-    console.error(err)
+    if (!res.ok) throw new Error('用户列表加载失败')
+    const data = await res.json()
+    userList.value = Array.isArray(data.items) ? data.items : []
+  } catch (error) {
+    showNotify({ type: 'danger', message: error.message || '用户列表加载失败' })
   } finally {
     loading.value = false
   }
 }
 
-async function updateStatus(userId, identity, newStatus) {
-  if (!confirm('确认修改该身份状态吗？')) return
-  try {
-    const res = await fetch('/api/users/admin/update-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, target_identity: identity, new_status: newStatus })
-    })
-    if (res.ok) {
-      fetchUsers()
-    }
-  } catch (err) {
-    alert('网络错误')
-  }
-}
-
-function getDriverStatusText(status) {
+function driverStatusText(status) {
   return ({
     unapplied: '未申请',
     pending: '审核中',
     approved: '已通过',
-    active: '正常',
-    banned: '已封禁'
+    active: '已通过',
+    banned: '已停用'
   })[status] || status
 }
 
-function isDriverEnabled(status) {
-  return status === 'active' || status === 'approved'
+function driverTagType(status) {
+  if (status === 'pending') return 'warning'
+  if (status === 'approved' || status === 'active') return 'success'
+  if (status === 'banned') return 'danger'
+  return 'default'
 }
 
-onMounted(fetchUsers)
+async function reviewDriver(user, nextStatus) {
+  const actionText = nextStatus === 'approved' ? '通过' : '驳回'
+  try {
+    await showConfirmDialog({
+      title: `${actionText}车主申请`,
+      message: `确认${actionText}用户「${user.username}」的车主认证申请吗？`
+    })
+  } catch {
+    return
+  }
+
+  operatingId.value = user.userId
+  try {
+    const res = await fetch('/api/users/admin/update-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: user.userId,
+        target_identity: 'driver',
+        new_status: nextStatus
+      })
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.detail || '审核操作失败')
+
+    showNotify({ type: 'success', message: nextStatus === 'approved' ? '已通过车主申请' : '已驳回车主申请' })
+    await fetchUsers()
+  } catch (error) {
+    showNotify({ type: 'danger', message: error.message || '审核操作失败' })
+  } finally {
+    operatingId.value = null
+  }
+}
 </script>
 
 <style scoped>
-@keyframes cardEnter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .admin-users-page {
-  --ink-strong: #1f2a44;
-  --ink-soft: #6b7a90;
-  --line: #d9e6fb;
-  --surface: #ffffff;
-  --surface-alt: linear-gradient(180deg, #fdfefe 0%, #f5f8ff 100%);
-  --blue-soft: #edf4ff;
-  --blue-accent: #2563eb;
-  --shadow-soft: 0 12px 28px rgba(37, 99, 235, 0.08);
-  padding: 14px 14px 34px;
+  display: grid;
+  gap: 12px;
+  padding-bottom: 28px;
 }
 
-.page-hero {
+.hero-card {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 16px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: var(--surface-alt);
-  box-shadow: var(--shadow-soft);
+  gap: 12px;
 }
 
-.hero-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.hero-eyebrow {
-  margin: 0 0 6px;
-  font-size: 11px;
+.eyebrow {
+  color: #165dff;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #7d8fb3;
+  margin-bottom: 5px;
 }
 
-.hero-copy h1 {
+h2,
+h3,
+p {
   margin: 0;
-  font-size: 26px;
-  line-height: 1.08;
-  color: var(--ink-strong);
 }
 
-.hero-subtitle {
-  margin: 8px 0 0;
-  max-width: 240px;
+h2 {
+  color: #172033;
+  font-size: 22px;
+}
+
+h3 {
+  color: #172033;
+  font-size: 16px;
+}
+
+p {
+  margin-top: 7px;
+  color: #65758b;
   font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-soft);
+  line-height: 1.55;
 }
 
-.hero-actions {
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stat-card {
+  padding: 13px 10px;
+  border: 1px solid #dce8ff;
+  border-radius: 16px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(22, 93, 255, 0.06);
+}
+
+.stat-card span {
+  display: block;
+  color: #7b8aa1;
+  font-size: 12px;
+}
+
+.stat-card b {
+  display: block;
+  margin-top: 4px;
+  color: #165dff;
+  font-size: 24px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.section-head span {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.page-loading {
+  display: flex;
+  justify-content: center;
+  padding: 36px 0;
+}
+
+.review-list,
+.compact-list {
   display: grid;
   gap: 10px;
-  justify-items: end;
 }
 
-.count-card {
-  min-width: 88px;
-  padding: 10px 12px;
-  border: 1px solid #d7e5ff;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  text-align: right;
+.review-card,
+.compact-row {
+  border: 1px solid #e5edf9;
+  border-radius: 14px;
+  padding: 12px;
+  background: #fbfdff;
 }
 
-.count-label {
-  display: block;
-  font-size: 11px;
-  color: #7b8aa4;
-}
-
-.count-card strong {
-  display: block;
-  margin-top: 2px;
-  font-size: 24px;
-  line-height: 1;
-  color: var(--blue-accent);
-}
-
-.refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 88px;
-  padding: 10px 14px;
-  border: 1px solid #cfe0ff;
-  border-radius: 999px;
-  background: #fff;
-  color: var(--ink-strong);
-  font-size: 13px;
-  font-weight: 700;
-  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.08);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-
-.refresh-btn:disabled {
-  opacity: 0.7;
-}
-
-.refresh-btn:active {
-  transform: scale(0.97);
-}
-
-.refresh-icon {
-  color: var(--blue-accent);
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.user-list {
-  display: grid;
-  gap: 12px;
-}
-
-.user-card {
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--surface);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-  animation: cardEnter 0.28s ease both;
-}
-
-.user-card-head {
+.user-main,
+.compact-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 
-.user-main {
-  min-width: 0;
-  flex: 1;
+.user-name,
+.compact-name {
+  color: #172033;
+  font-weight: 800;
 }
 
-.user-name-row {
+.user-id,
+.compact-id {
+  margin-top: 3px;
+  color: #8a97ac;
+  font-size: 12px;
+}
+
+.actions {
+  margin-top: 12px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 
-.user-name-row h2 {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.15;
-  color: var(--ink-strong);
-}
-
-.user-id {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #8a97ac;
-}
-
-.admin-badge {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #24334f;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.system-lock {
-  padding: 7px 10px;
-  border-radius: 12px;
-  background: #f5f7fb;
-  color: #7f8ca3;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.status-panel {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.status-item {
-  padding: 12px;
-  border: 1px solid #e8eefc;
-  border-radius: 14px;
-  background: #fbfcff;
-}
-
-.status-label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--ink-soft);
-}
-
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.status-chip.active,
-.status-chip.approved {
-  background: #ebfbf4;
-  border-color: #b9efcf;
-  color: #18a35f;
-}
-
-.status-chip.banned {
-  background: #fff1f1;
-  border-color: #ffd5d5;
-  color: #e64c4c;
-}
-
-.status-chip.pending {
-  background: #fff7eb;
-  border-color: #ffd8a8;
-  color: #db7b11;
-}
-
-.status-chip.unapplied {
-  background: #f2f5fa;
-  border-color: #dbe3ef;
-  color: #7e8aa0;
-}
-
-.action-panel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.action-btn {
-  flex: 1 1 140px;
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: #eef6ff;
-  color: #2563eb;
-  font-size: 13px;
-  font-weight: 700;
-  transition: transform 0.16s ease, filter 0.16s ease;
-}
-
-.action-btn:active {
-  transform: scale(0.98);
-}
-
-.danger-soft {
-  background: #fff3f3;
-  border-color: #ffdcdc;
-  color: #e54848;
-}
-
-.success-soft {
-  background: #eefbf3;
-  border-color: #caefd6;
-  color: #17915d;
-}
-
-.empty-state {
-  padding: 42px 18px;
-  border: 1px dashed #cfe0ff;
-  border-radius: 20px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f3f7ff 100%);
-  text-align: center;
-}
-
-.empty-icon {
-  font-size: 28px;
-  color: #7c92b9;
-}
-
-.empty-state h3 {
-  margin: 10px 0 6px;
-  font-size: 18px;
-  color: var(--ink-strong);
-}
-
-.empty-state p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-soft);
-}
-
-@media (max-width: 640px) {
-  .page-hero {
-    flex-direction: column;
-  }
-
-  .hero-subtitle {
-    max-width: none;
-  }
-
-  .hero-actions {
-    width: 100%;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: stretch;
-    justify-items: stretch;
-  }
-
-  .count-card {
-    text-align: left;
-  }
-
-  .status-panel {
+@media (max-width: 420px) {
+  .stat-row {
     grid-template-columns: 1fr;
-  }
-
-  .action-panel {
-    flex-direction: column;
   }
 }
 </style>
