@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.common.config import RIDE_USE_MOCK
 from backend.ride.ride_domain import (
     AcceptOrderRequest,
     CompleteOrderRequest,
@@ -55,6 +56,15 @@ def _require_owner_verified(owner_verified: bool) -> None:
         raise HTTPException(status_code=403, detail="owner identity verification required")
 
 
+def _resolve_user_id(user_id: Optional[str], mock_default: str) -> str:
+    resolved = (user_id or "").strip()
+    if resolved:
+        return resolved
+    if RIDE_USE_MOCK:
+        return mock_default
+    raise HTTPException(status_code=401, detail="missing X-User-Id")
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "ride"}
@@ -65,10 +75,10 @@ def health_check():
 @app.post("/api/orders")
 def api_publish_order(
     payload: OrderPublishRequest,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
 ):
     """乘客发布订单（含标签）"""
-    return publish_order(payload, x_user_id)
+    return publish_order(payload, _resolve_user_id(x_user_id, "3"))
 
 
 @app.get("/api/orders/search")
@@ -108,41 +118,41 @@ def api_get_order_detail(order_id: str):
 def api_update_order(
     order_id: str,
     payload: OrderUpdateRequest,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
 ):
     """修改订单信息（仅限 published 状态，且只有发单人可改）"""
-    return update_order(order_id, payload, x_user_id)
+    return update_order(order_id, payload, _resolve_user_id(x_user_id, "3"))
 
 
 @app.post("/api/orders/{order_id}/cancel")
 def api_cancel_order(
     order_id: str,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_user_role: str = Header(default="user", alias="X-User-Role"),
 ):
     """取消订单（发单人、已接车主、已参与乘客、管理员均可）"""
-    return cancel_order(order_id, x_user_id, is_admin=(x_user_role == "admin"))
+    return cancel_order(order_id, _resolve_user_id(x_user_id, "3"), is_admin=(x_user_role == "admin"))
 
 
 @app.post("/api/orders/{order_id}/join")
 def api_join_order(
     order_id: str,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
 ):
     """乘客加入订单（仅限 published 状态）"""
-    return join_order(order_id, x_user_id)
+    return join_order(order_id, _resolve_user_id(x_user_id, "3"))
 
 
 @app.post("/api/orders/{order_id}/accept")
 def api_accept_order(
     order_id: str,
     payload: AcceptOrderRequest,
-    x_user_id: str = Header(default="dev-owner-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """车主接单（仅限 published/full 状态）"""
     _require_owner_verified(x_owner_verified)
-    return accept_order(order_id, payload, x_user_id)
+    return accept_order(order_id, payload, _resolve_user_id(x_user_id, "998"))
 
 
 @app.post("/api/orders/{order_id}/complete")
@@ -156,23 +166,23 @@ def api_complete_order(
 
 @app.get("/api/vehicles")
 def api_list_vehicles(
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """查询当前车主名下所有可用车辆"""
     _require_owner_verified(x_owner_verified)
-    return list_vehicles(x_user_id)
+    return list_vehicles(_resolve_user_id(x_user_id, "2"))
 
 
 @app.post("/api/vehicles")
 def api_create_vehicle(
     payload: VehicleCreateRequest,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """新增当前车主车辆"""
     _require_owner_verified(x_owner_verified)
-    return create_vehicle(payload, x_user_id)
+    return create_vehicle(payload, _resolve_user_id(x_user_id, "2"))
 
 
 @app.get("/api/vehicles/verify-requests")
@@ -190,46 +200,46 @@ def api_list_vehicle_verify_requests(
 def api_review_vehicle_verify_request(
     request_id: str,
     payload: VehicleVerifyReviewRequest,
-    x_user_id: str = Header(default="admin", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_user_role: str = Header(default="user", alias="X-User-Role"),
 ):
     """管理员审核车辆认证申请"""
     if x_user_role != "admin":
         raise HTTPException(status_code=403, detail="admin role required")
-    return review_vehicle_verify_request(request_id, payload, x_user_id)
+    return review_vehicle_verify_request(request_id, payload, _resolve_user_id(x_user_id, "admin"))
 
 
 @app.delete("/api/vehicles/verify-requests/{request_id}")
 def api_withdraw_vehicle_verify_request(
     request_id: str,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
 ):
     """车主撤回待审核车辆认证申请"""
-    return withdraw_vehicle_verify_request(request_id, x_user_id)
+    return withdraw_vehicle_verify_request(request_id, _resolve_user_id(x_user_id, "2"))
 
 
 @app.put("/api/vehicles/{vehicle_id}")
 def api_update_vehicle(
     vehicle_id: str,
     payload: VehicleUpdateRequest,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """编辑车辆基础信息"""
     _require_owner_verified(x_owner_verified)
-    return update_vehicle(vehicle_id, payload, x_user_id)
+    return update_vehicle(vehicle_id, payload, _resolve_user_id(x_user_id, "2"))
 
 
 @app.patch("/api/vehicles/{vehicle_id}/status")
 def api_update_vehicle_status(
     vehicle_id: str,
     payload: VehicleStatusUpdateRequest,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """切换车辆状态"""
     _require_owner_verified(x_owner_verified)
-    return update_vehicle_status(vehicle_id, payload, x_user_id)
+    return update_vehicle_status(vehicle_id, payload, _resolve_user_id(x_user_id, "2"))
 
 
 @app.patch("/api/vehicles/{vehicle_id}/verified")
@@ -248,20 +258,20 @@ def api_update_vehicle_verified(
 def api_submit_vehicle_verify_request(
     vehicle_id: str,
     payload: VehicleVerifySubmitRequest,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """车主提交车辆认证资料"""
     _require_owner_verified(x_owner_verified)
-    return submit_vehicle_verify_request(vehicle_id, payload, x_user_id)
+    return submit_vehicle_verify_request(vehicle_id, payload, _resolve_user_id(x_user_id, "2"))
 
 
 @app.delete("/api/vehicles/{vehicle_id}")
 def api_delete_vehicle(
     vehicle_id: str,
-    x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
+    x_user_id: Optional[str] = Header(default=None, alias="X-User-Id"),
     x_owner_verified: bool = Header(default=False, alias="X-Owner-Verified"),
 ):
     """删除车辆"""
     _require_owner_verified(x_owner_verified)
-    return delete_vehicle(vehicle_id, x_user_id)
+    return delete_vehicle(vehicle_id, _resolve_user_id(x_user_id, "2"))

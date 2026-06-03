@@ -112,7 +112,7 @@ def _now() -> str:
 _ORDERS: dict = {
     "ord-seed-001": {
         "order_id": "ord-seed-001",
-        "passenger_id": "dev-user-1",
+        "passenger_id": "3",
         "start_loc": "软件园",
         "end_loc": "大学城",
         "depart_time_from": "2026-04-15T08:00:00",
@@ -129,7 +129,7 @@ _ORDERS: dict = {
     },
     "ord-seed-002": {
         "order_id": "ord-seed-002",
-        "passenger_id": "dev-user-2",
+        "passenger_id": "2",
         "start_loc": "天河客运站",
         "end_loc": "广州南站",
         "depart_time_from": "2026-04-16T14:00:00",
@@ -146,7 +146,7 @@ _ORDERS: dict = {
     },
     "ord-seed-003": {
         "order_id": "ord-seed-003",
-        "passenger_id": "dev-user-1",
+        "passenger_id": "3",
         "start_loc": "珠江新城",
         "end_loc": "广州白云机场",
         "depart_time_from": "2026-04-17T06:00:00",
@@ -154,7 +154,7 @@ _ORDERS: dict = {
         "seats_needed": 3,
         "seats_joined": 3,
         "expected_price": 80.00,
-        "owner_id": "dev-owner-1",
+        "owner_id": "998",
         "vehicle_id": "veh-mock-001",
         "locked_time": "2026-04-13T12:00:00",
         "status": "locked",
@@ -163,7 +163,7 @@ _ORDERS: dict = {
     },
     "ord-seed-004": {
         "order_id": "ord-seed-004",
-        "passenger_id": "dev-user-3",
+        "passenger_id": "2",
         "start_loc": "南门",
         "end_loc": "广州南站",
         "depart_time_from": "2026-04-18T10:00:00",
@@ -193,37 +193,37 @@ _TAGS: dict = {
 _PASSENGERS: dict = {
     "rec-s1": {
         "record_id": "rec-s1", "order_id": "ord-seed-001",
-        "passenger_id": "dev-user-1", "join_time": "2026-04-13T10:00:00",
+        "passenger_id": "3", "join_time": "2026-04-13T10:00:00",
         "pay_status": "pending",
     },
     "rec-s2": {
         "record_id": "rec-s2", "order_id": "ord-seed-002",
-        "passenger_id": "dev-user-2", "join_time": "2026-04-13T09:00:00",
+        "passenger_id": "2", "join_time": "2026-04-13T09:00:00",
         "pay_status": "pending",
     },
     "rec-s3": {
         "record_id": "rec-s3", "order_id": "ord-seed-003",
-        "passenger_id": "dev-user-1", "join_time": "2026-04-13T08:00:00",
+        "passenger_id": "3", "join_time": "2026-04-13T08:00:00",
         "pay_status": "pending",
     },
     "rec-s4": {
         "record_id": "rec-s4", "order_id": "ord-seed-003",
-        "passenger_id": "dev-user-3", "join_time": "2026-04-13T08:30:00",
+        "passenger_id": "2", "join_time": "2026-04-13T08:30:00",
         "pay_status": "pending",
     },
     "rec-s5": {
         "record_id": "rec-s5", "order_id": "ord-seed-003",
-        "passenger_id": "dev-user-4", "join_time": "2026-04-13T09:00:00",
+        "passenger_id": "998", "join_time": "2026-04-13T09:00:00",
         "pay_status": "pending",
     },
 }
 
 
-# 车辆 mock 数据（dev 环境，含 dev-user-1 和 dev-owner-1 各自的车）
+# 车辆 mock 数据（dev 环境，与账号 mock 用户 yxx/driver1 对齐）
 _VEHICLES: dict = {
     "veh-mock-001": {
         "vehicle_id": "veh-mock-001",
-        "owner_id": "dev-owner-1",
+        "owner_id": "998",
         "plate_no": "粤A·88888",
         "brand": "丰田 凯美瑞",
         "color": "珍珠白",
@@ -233,7 +233,7 @@ _VEHICLES: dict = {
     },
     "veh-mock-002": {
         "vehicle_id": "veh-mock-002",
-        "owner_id": "dev-user-1",
+        "owner_id": "2",
         "plate_no": "粤B·12345",
         "brand": "本田 雅阁",
         "color": "深空黑",
@@ -243,7 +243,7 @@ _VEHICLES: dict = {
     },
     "veh-mock-003": {
         "vehicle_id": "veh-mock-003",
-        "owner_id": "dev-user-1",
+        "owner_id": "2",
         "plate_no": "粤C·67890",
         "brand": "大众 帕萨特",
         "color": "银色",
