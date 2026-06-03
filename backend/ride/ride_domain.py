@@ -9,7 +9,7 @@
   4.  GET    /api/orders/{id}         订单详情
   5.  PUT    /api/orders/{id}         修改订单（仅 published）
   6.  POST   /api/orders/{id}/cancel  取消订单
-  7.  POST   /api/orders/{id}/join    拼车人加入
+  7.  POST   /api/orders/{id}/join    乘客加入
   8.  POST   /api/orders/{id}/accept  车主接单
   9.  POST   /api/orders/{id}/complete 标记完成（域3回调）
   10. GET    /api/orders/all          管理员查看全部订单（alias → list_orders 无参数）
@@ -773,7 +773,7 @@ def cancel_order(order_id: str, user_id: str, is_admin: bool = False) -> dict:
     return {"order_id": order_id, "status": "cancelled", "penalty": needs_penalty}
 
 
-# ── 7. 拼车人加入订单 ──────────────────────────────────────────────────────────
+# ── 7. 乘客加入订单 ──────────────────────────────────────────────────────────
 
 def join_order(order_id: str, user_id: str) -> dict:
     if not RIDE_USE_MOCK:

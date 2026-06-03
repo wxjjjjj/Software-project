@@ -67,7 +67,7 @@ def api_publish_order(
     payload: OrderPublishRequest,
     x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
 ):
-    """拼车人发布订单（含标签）"""
+    """乘客发布订单（含标签）"""
     return publish_order(payload, x_user_id)
 
 
@@ -129,7 +129,7 @@ def api_join_order(
     order_id: str,
     x_user_id: str = Header(default="dev-user-1", alias="X-User-Id"),
 ):
-    """拼车人加入订单（仅限 published 状态）"""
+    """乘客加入订单（仅限 published 状态）"""
     return join_order(order_id, x_user_id)
 
 

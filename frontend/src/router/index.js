@@ -9,7 +9,6 @@ import UserProfile from '../views/common/UserProfile.vue'
 
 import MeProfile from '../views/me/MeProfile.vue'
 import MeMessages from '../views/me/MeMessages.vue'
-import MeFeedback from '../views/me/MeFeedback.vue'
 
 import PassengerHome from '../views/passenger/PassengerHome.vue'
 import PassengerOrderPublish from '../views/passenger/PassengerOrderPublish.vue'
@@ -99,7 +98,6 @@ const routes = [
       { path: 'me/vehicles/:vehicleId/verify', redirect: '/me/vehicles' },
       { path: 'me/vehicles', component: OwnerVehicles, meta: { requiresAuth: true, role: 'user', ownerRequired: true } },
       { path: 'me/messages', component: MeMessages, meta: { requiresAuth: true, role: 'user', backTo: '/me/profile' } },
-      { path: 'me/feedback', component: MeFeedback, meta: { requiresAuth: true, role: 'user', backTo: '/me/profile' } },
       { path: 'users/:userId', component: UserProfile, meta: { requiresAuth: true, role: 'user', backTo: '/me/profile' } },
 
       { path: 'driver/home', component: OwnerHome, meta: { requiresAuth: true, role: 'driver' } },

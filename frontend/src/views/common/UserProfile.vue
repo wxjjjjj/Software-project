@@ -5,7 +5,7 @@
       <h2>用户 {{ userId }}</h2>
       <p>{{ profileHint }}</p>
       <div class="actions">
-        <van-button plain type="warning" block to="/me/feedback">投诉 / 反馈</van-button>
+        <van-button plain type="warning" block :to="complaintRoute">投诉该用户</van-button>
       </div>
     </section>
   </div>
@@ -17,14 +17,33 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
+function getSessionRole() {
+  try {
+    return String(JSON.parse(localStorage.getItem('session') || '{}').role || '').toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
 const userId = computed(() => String(route.params.userId || ''))
 const orderId = computed(() => String(route.query.orderId || ''))
+const viewerRole = computed(() => String(route.query.viewer || '').toLowerCase())
+const currentViewerRole = computed(() => viewerRole.value || getSessionRole())
 const targetRole = computed(() => {
   const value = String(route.query.target || '').toLowerCase()
   if (value === 'driver') return 'driver'
   if (value === 'passenger') return 'passenger'
   return 'user'
 })
+
+const complaintRoute = computed(() => ({
+  path: currentViewerRole.value === 'driver' ? '/driver/feedback' : '/passenger/feedback',
+  query: {
+    username: userId.value,
+    orderId: orderId.value || undefined,
+    target: targetRole.value,
+  },
+}))
 
 const profileHint = computed(() => {
   if (orderId.value) {

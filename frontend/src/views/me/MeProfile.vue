@@ -4,10 +4,10 @@
       <div>
         <div class="eyebrow">个人中心</div>
         <h2>{{ session.username || '未命名用户' }}</h2>
-        <p>登录后默认以拼车人身份使用，通过认证后可切换到车主模式。</p>
+        <p>登录后默认以乘客身份使用，通过认证后可切换到车主模式。</p>
       </div>
       <van-tag :type="session.ownerVerified ? 'success' : 'warning'">
-        {{ session.ownerVerified ? '已具备车主资格' : '拼车人' }}
+        {{ session.ownerVerified ? '已具备车主资格' : '乘客' }}
       </van-tag>
     </section>
 
@@ -16,7 +16,7 @@
         <span>车主身份认证</span><b>></b>
       </router-link>
       <router-link :to="session.ownerVerified ? '/me/vehicles' : '/me/driver-application'" class="action-row">
-        <span>{{ session.ownerVerified ? '我的车辆' : '车辆认证（先完成车主认证）' }}</span><b>></b>
+        <span>{{ session.ownerVerified ? '我的车辆' : '车辆认证' }}</span><b>></b>
       </router-link>
       <router-link v-if="session.ownerVerified" to="/driver/wallet" class="action-row">
         <span>车主钱包</span><b>></b>
@@ -26,9 +26,6 @@
       </router-link>
       <router-link to="/me/messages" class="action-row">
         <span>消息与沟通</span><b>></b>
-      </router-link>
-      <router-link to="/me/feedback" class="action-row">
-        <span>我的反馈</span><b>></b>
       </router-link>
     </section>
   </div>

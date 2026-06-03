@@ -175,16 +175,6 @@
           >
             进入聊天
           </van-button>
-          <van-button
-            round
-            block
-            plain
-            type="default"
-            style="margin-top: 8px"
-            @click="router.push(isDriverView ? '/driver/feedback' : '/passenger/feedback')"
-          >
-            投诉举报
-          </van-button>
         </div>
       </div>
 

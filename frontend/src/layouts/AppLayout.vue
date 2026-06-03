@@ -76,9 +76,8 @@ onBeforeUnmount(() => {
 
 const roleLabel = computed(() => {
   if (session.value.role === 'admin') return '管理员'
-  if (session.value.role === 'driver') return '车主模式'
-  if (session.value.ownerVerified) return '拼车人(可切车主)'
-  return '拼车人'
+  if (session.value.role === 'driver') return '车主'
+  return '乘客'
 })
 
 const tabItems = computed(() => {
@@ -87,7 +86,7 @@ const tabItems = computed(() => {
       { path: '/admin/users', label: '用户', icon: 'manager-o' },
       { path: '/admin/orders', label: '订单', icon: 'todo-list-o' },
       { path: '/admin/vehicle-verifications', label: '车辆审核', icon: 'logistics' },
-      { path: '/admin/feedback', label: '反馈', icon: 'chat-o' }
+      { path: '/admin/feedback', label: '投诉', icon: 'chat-o' }
     ]
   }
 
@@ -131,7 +130,7 @@ const actionItems = computed(() => {
   }
 
   const items = [
-    { text: '拼车人模式', key: 'passenger' },
+    { text: '乘客模式', key: 'passenger' },
     { text: session.value.ownerVerified ? '车主模式' : '申请成为车主', key: 'driver' },
     { text: '个人中心', key: 'me' }
   ]

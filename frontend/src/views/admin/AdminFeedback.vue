@@ -50,7 +50,9 @@
           <div class="work-head">
             <div>
               <div class="work-title">投诉 #{{ item.ticketId }}</div>
-              <div class="work-sub">投诉人：{{ item.plaintiffId }} · {{ formatTime(item.createdAt) }}</div>
+              <div class="work-sub">
+                投诉人：{{ item.plaintiffId }} · 被投诉：{{ complaintTargetName(item) }} · {{ formatTime(item.createdAt) }}
+              </div>
             </div>
             <van-tag :type="statusTag(item.status)">{{ statusText(item.status) }}</van-tag>
           </div>
@@ -101,6 +103,8 @@
       :before-close="doHandle"
     >
       <van-cell title="投诉编号" :value="currentItem?.ticketId" />
+      <van-cell title="被投诉用户" :value="currentTargetName" />
+      <van-cell v-if="currentItem?.orderId" title="关联行程" :value="currentItem?.orderId" />
       <van-cell title="投诉内容" :value="currentItem?.detail" />
       <van-field
         v-model="handleReply"
@@ -119,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import { adminListComplaints, adminHandleComplaint, adminStatistics, getUserId,
          adminListWithdrawals, adminApproveWithdrawal, adminRejectWithdrawal } from '../../api/ops.js'
@@ -143,9 +147,18 @@ const wdPage = ref(1)
 
 const STATUS_MAP = { 0: '待处理', 1: '处理中', 2: '已解决', 3: '已驳回', [-1]: '全部' }
 const STATUS_TAG = { 0: 'warning', 1: 'primary', 2: 'success', 3: 'default' }
+const currentTargetName = computed(() => complaintTargetName(currentItem.value))
 
 function statusText(s) { return STATUS_MAP[s] || '未知' }
 function statusTag(s) { return STATUS_TAG[s] || 'default' }
+
+function complaintTargetName(item) {
+  if (!item) return ''
+  const match = String(item.detail || '').match(/^投诉用户名：(.+)$/m)
+  if (match?.[1]) return match[1].trim()
+  if (item.defendantId) return `用户 #${item.defendantId}`
+  return '未填写'
+}
 
 function formatTime(t) {
   if (!t) return ''

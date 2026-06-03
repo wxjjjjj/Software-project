@@ -89,10 +89,6 @@ export function createComplaint(payload) {
   return request(`${BASE}/complaints`, 'POST', payload)
 }
 
-export function listComplaints(userId, page = 1, size = 20) {
-  return request(`${BASE}/complaints?user_id=${userId}&page=${page}&size=${size}`, 'GET')
-}
-
 export function adminListComplaints(status, page = 1, size = 20) {
   let url = `${BASE}/admin/complaints?page=${page}&size=${size}`
   if (status !== undefined && status !== null) url += `&status=${status}`

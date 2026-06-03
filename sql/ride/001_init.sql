@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS vehicle_verify_request (
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS orders (
   id               VARCHAR(36)    PRIMARY KEY                   COMMENT '订单 UUID',
-  passenger_id     VARCHAR(64)    NOT NULL                      COMMENT '发单拼车人 userId',
+  passenger_id     VARCHAR(64)    NOT NULL                      COMMENT '发单乘客 userId',
   start_loc        VARCHAR(100)   NOT NULL                      COMMENT '出发地',
   end_loc          VARCHAR(100)   NOT NULL                      COMMENT '目的地',
   depart_time_from DATETIME       NOT NULL                      COMMENT '出发时间窗口起点',
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS order_tag (
 CREATE TABLE IF NOT EXISTS order_passenger (
   id           VARCHAR(36)  PRIMARY KEY         COMMENT '记录 UUID',
   order_id     VARCHAR(36)  NOT NULL            COMMENT '所属订单 ID',
-  passenger_id VARCHAR(64)  NOT NULL            COMMENT '参与拼车人 userId',
+  passenger_id VARCHAR(64)  NOT NULL            COMMENT '参与乘客 userId',
   join_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
   pay_status   ENUM('pending','paid','refunded') NOT NULL DEFAULT 'pending' COMMENT '支付状态',
   INDEX idx_op_order      (order_id),

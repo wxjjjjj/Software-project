@@ -11,7 +11,7 @@ USE ops_db;
 -- DELETE FROM ops_chat_message;
 -- DELETE FROM ops_complaint;
 
--- 钱包：用户1（拼车人）初始300，支付35.50后余额264.50
+-- 钱包：用户1（乘客）初始300，支付35.50后余额264.50
 --      用户2（车主）  初始300，收款35.50后余额335.50
 --      用户3（车主，有冻结金额用于提现演示）
 INSERT INTO ops_wallet (user_id, balance, frozen_amount, status) VALUES

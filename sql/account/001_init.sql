@@ -26,7 +26,7 @@ CREATE TABLE users (
     role VARCHAR(20) DEFAULT 'passenger',    -- passenger, driver, admin
     account_status VARCHAR(20) DEFAULT 'active', -- active, banned
 
-    -- 拼车人身份属性
+    -- 乘客身份属性
     passenger_score INT DEFAULT 100,
     passenger_status VARCHAR(20) DEFAULT 'active',
 
